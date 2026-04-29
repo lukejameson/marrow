@@ -8,8 +8,8 @@ import { PromptService } from '$lib/server/ai/prompt-service';
 import type { Message } from '$lib/server/ai/providers';
 import { AIConfigurationError, isAIConfigurationError, AIRateLimitError, isAIRateLimitError } from '$lib/utils/errors';
 import { db } from '$lib/server/db/db';
-import { agents } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { agents, memories } from '$lib/server/db/schema';
+import { eq, desc } from 'drizzle-orm';
 
 const recipeChatSchema = z.object({
   messages: z.array(z.object({
@@ -53,8 +53,17 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
     const aiService = await AIServiceV2.getInstance();
 
-    let systemPrompt: string;
+    const userMemories = await db
+      .select()
+      .from(memories)
+      .where(eq(memories.userId, user.id))
+      .orderBy(desc(memories.createdAt));
 
+    const userContext = userMemories.length > 0
+      ? `User preferences and context:\n${userMemories.map(m => `- ${m.content}`).join('\n')}`
+      : '';
+
+    let systemPrompt: string;
     if (agentId) {
       const agentResult = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
       if (agentResult.length > 0) {
@@ -67,6 +76,11 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
       systemPrompt = promptData?.content || `You are a helpful cooking assistant.`;
     }
 
+    if (userContext) {
+      systemPrompt = systemPrompt.replace('{{user_context}}', `\n\n${userContext}`);
+    } else {
+      systemPrompt = systemPrompt.replace('{{user_context}}', '');
+    }
     if (referencedRecipes && referencedRecipes.length > 0) {
       systemPrompt += '\n\nThe user is asking about these recipes:\n';
       for (const recipe of referencedRecipes) {
@@ -74,7 +88,6 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
         systemPrompt += `  Ingredients: ${recipe.ingredients.join(', ')}\n`;
       }
     }
-
     const mappedMessages: Message[] = messages.map((m) => ({
       role: m.role,
       content: m.content,

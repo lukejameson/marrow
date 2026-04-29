@@ -15,7 +15,8 @@ export enum AIFeature {
 	PANTRY_MATCHING = 'pantry_matching',
 	RECIPE_MENTION_SEARCH = 'recipe_mention_search',
 	IMAGE_PROMPT_GENERATION = 'image_prompt_generation',
-	IMAGE_GENERATION = 'image_generation'
+	IMAGE_GENERATION = 'image_generation',
+	PERSONALIZED_SUGGESTIONS = 'personalized_suggestions'
 }
 export interface FeatureConfig {
 	feature: AIFeature;
@@ -110,6 +111,11 @@ export const DEFAULT_FEATURE_CONFIGS: Record<AIFeature, { temperature: number; m
 		temperature: 0.5,
 		maxTokens: 2048,
 		requiresVision: false
+	},
+	[AIFeature.PERSONALIZED_SUGGESTIONS]: {
+		temperature: 0.7,
+		maxTokens: 2048,
+		requiresVision: false
 	}
 };
 export const FEATURE_NAMES: Record<AIFeature, string> = {
@@ -129,7 +135,8 @@ export const FEATURE_NAMES: Record<AIFeature, string> = {
 	[AIFeature.PANTRY_MATCHING]: 'Pantry Matching',
 	[AIFeature.RECIPE_MENTION_SEARCH]: 'Recipe Mention Search',
 	[AIFeature.IMAGE_PROMPT_GENERATION]: 'Image Prompt Generation',
-	[AIFeature.IMAGE_GENERATION]: 'Image Generation'
+	[AIFeature.IMAGE_GENERATION]: 'Image Generation',
+	[AIFeature.PERSONALIZED_SUGGESTIONS]: 'Personalized Suggestions'
 };
 export const FEATURE_DESCRIPTIONS: Record<AIFeature, string> = {
 	[AIFeature.RECIPE_CHAT]: 'General chat about recipes and cooking',
@@ -148,7 +155,8 @@ export const FEATURE_DESCRIPTIONS: Record<AIFeature, string> = {
 	[AIFeature.PANTRY_MATCHING]: 'Find recipes matching available pantry items',
 	[AIFeature.RECIPE_MENTION_SEARCH]: 'Search for recipes mentioned in text',
 	[AIFeature.IMAGE_PROMPT_GENERATION]: 'Generate image prompts from recipe details',
-	[AIFeature.IMAGE_GENERATION]: 'Generate images from text prompts'
+	[AIFeature.IMAGE_GENERATION]: 'Generate images from text prompts',
+	[AIFeature.PERSONALIZED_SUGGESTIONS]: 'Generate personalized recipe suggestions based on user preferences'
 };
 export enum FeatureCategory {
 	CHAT = 'chat',
@@ -173,7 +181,8 @@ export const FEATURE_CATEGORIES: Record<AIFeature, FeatureCategory> = {
 	[AIFeature.PANTRY_MATCHING]: FeatureCategory.ANALYSIS,
 	[AIFeature.RECIPE_MENTION_SEARCH]: FeatureCategory.ANALYSIS,
 	[AIFeature.IMAGE_PROMPT_GENERATION]: FeatureCategory.GENERATION,
-	[AIFeature.IMAGE_GENERATION]: FeatureCategory.GENERATION
+	[AIFeature.IMAGE_GENERATION]: FeatureCategory.GENERATION,
+	[AIFeature.PERSONALIZED_SUGGESTIONS]: FeatureCategory.GENERATION
 };
 export const CATEGORY_NAMES: Record<FeatureCategory, string> = {
 	[FeatureCategory.CHAT]: 'Chat',

@@ -6,6 +6,9 @@ import { AIServiceV2 } from '$lib/server/ai/service-v2';
 import { AIFeature } from '$lib/server/ai/features';
 import { PromptService } from '$lib/server/ai/prompt-service';
 import { AIConfigurationError, isAIConfigurationError, AIRateLimitError, isAIRateLimitError } from '$lib/utils/errors';
+import { db } from '$lib/server/db/db';
+import { memories } from '$lib/server/db/schema';
+import { eq, desc } from 'drizzle-orm';
 
 const suggestSubstitutionsSchema = z.object({
   ingredient: z.string().min(1),
@@ -30,14 +33,27 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     }
 
     const { ingredient, context } = result.data;
+
     const aiService = await AIServiceV2.getInstance();
+
+    const userMemories = await db
+      .select()
+      .from(memories)
+      .where(eq(memories.userId, user.id))
+      .orderBy(desc(memories.createdAt));
+
+    const userContext = userMemories.length > 0
+      ? `User dietary restrictions: ${userMemories.map(m => m.content).join('; ')}`
+      : '';
+
     const promptData = await PromptService.getPrompt(AIFeature.INGREDIENT_SUBSTITUTIONS);
     let systemPrompt = promptData?.content || `Suggest ingredient substitutions for: {{ingredient}}
 Context: {{context}}
+{{user_context}}
 Consider:
 - Similar flavor profiles
 - Texture alternatives
-- Dietary restrictions (if applicable)
+- Dietary restrictions (respect the user's dietary restrictions)
 - Common pantry substitutions
 Return a JSON array of substitution objects:
 [
@@ -47,9 +63,11 @@ Return a JSON array of substitution objects:
     "notes": "any special considerations"
   }
 ]`;
+
     systemPrompt = PromptService.resolvePromptVariables(systemPrompt, {
       ingredient,
-      context: context || ''
+      context: context || '',
+      user_context: userContext
     });
     const generationResult = await aiService.generateForFeature(AIFeature.INGREDIENT_SUBSTITUTIONS, {
       systemPrompt,

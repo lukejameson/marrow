@@ -6,6 +6,9 @@ import { AIServiceV2 } from '$lib/server/ai/service-v2';
 import { AIFeature } from '$lib/server/ai/features';
 import { PromptService } from '$lib/server/ai/prompt-service';
 import { AIConfigurationError, isAIConfigurationError, AIRateLimitError, isAIRateLimitError } from '$lib/utils/errors';
+import { db } from '$lib/server/db/db';
+import { memories } from '$lib/server/db/schema';
+import { eq, desc } from 'drizzle-orm';
 
 const suggestImprovementsSchema = z.object({
   recipe: z.object({
@@ -34,16 +37,29 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     }
 
     const { recipe } = result.data;
+
     const aiService = await AIServiceV2.getInstance();
+
+    const userMemories = await db
+      .select()
+      .from(memories)
+      .where(eq(memories.userId, user.id))
+      .orderBy(desc(memories.createdAt));
+
+    const userContext = userMemories.length > 0
+      ? `User preferences: ${userMemories.map(m => m.content).join('; ')}`
+      : '';
+
     const promptData = await PromptService.getPrompt(AIFeature.IMPROVEMENT_SUGGESTIONS);
     let systemPrompt = promptData?.content || `Analyze this recipe and suggest improvements:
 Recipe: {{recipe_title}}
 Ingredients: {{ingredients}}
 Instructions: {{instructions}}
+{{user_context}}
 Consider:
 - Flavor enhancements
 - Technique improvements
-- Ingredient substitutions for better results
+- Ingredient substitutions for better results (respecting dietary restrictions if applicable)
 - Cooking time optimizations
 - Plating and presentation suggestions
 Return a JSON array of improvement objects:
@@ -54,10 +70,12 @@ Return a JSON array of improvement objects:
     "explanation": "why this improves the recipe"
   }
 ]`;
+
     systemPrompt = PromptService.resolvePromptVariables(systemPrompt, {
       recipe_title: recipe.title,
       ingredients: recipe.ingredients.join(', '),
-      instructions: recipe.instructions.join('; ')
+      instructions: recipe.instructions.join('; '),
+      user_context: userContext
     });
     const generationResult = await aiService.generateForFeature(AIFeature.IMPROVEMENT_SUGGESTIONS, {
       systemPrompt,

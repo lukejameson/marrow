@@ -6,6 +6,9 @@ import { AIFeature } from '$lib/server/ai/features';
 import { PromptService } from '$lib/server/ai/prompt-service';
 import type { Message } from '$lib/server/ai/providers';
 import { AIConfigurationError, isAIConfigurationError, AIRateLimitError, isAIRateLimitError } from '$lib/utils/errors';
+import { db } from '$lib/server/db/db';
+import { memories } from '$lib/server/db/schema';
+import { eq, desc } from 'drizzle-orm';
 
 /**
  * POST /api/ai/chat - Chat about a specific recipe
@@ -28,9 +31,21 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
     // Get AI service instance
     const aiService = await AIServiceV2.getInstance();
+
+    const userMemories = await db
+      .select()
+      .from(memories)
+      .where(eq(memories.userId, user.id))
+      .orderBy(desc(memories.createdAt));
+
+    const userContext = userMemories.length > 0
+      ? `User preferences and context:\n${userMemories.map(m => `- ${m.content}`).join('\n')}`
+      : '';
+
     const promptData = await PromptService.getPrompt(AIFeature.RECIPE_CHAT_CONTEXTUAL);
     let systemPrompt = promptData?.content || `You are a helpful cooking assistant chatting about a specific recipe.
 Be conversational, helpful, and provide specific advice about the recipe.
+{{user_context}}
 Recipe: {{recipe_title}}
 Description: {{recipe_description}}
 Ingredients: {{ingredients}}
@@ -38,7 +53,9 @@ Instructions: {{instructions}}
 Servings: {{servings}}
 Prep time: {{prep_time}}
 Cook time: {{cook_time}}`;
+
     systemPrompt = PromptService.resolvePromptVariables(systemPrompt, {
+      user_context: userContext,
       recipe_title: recipe.title,
       recipe_description: recipe.description || 'N/A',
       ingredients: recipe.ingredients?.join(', ') || 'N/A',

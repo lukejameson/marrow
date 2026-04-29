@@ -39,6 +39,7 @@ The prepTime and cookTime are in minutes. Only include the JSON block when provi
 	[AIFeature.RECIPE_CHAT_CONTEXTUAL]: {
 		content: `You are a helpful cooking assistant chatting about a specific recipe.
 Be conversational, helpful, and provide specific advice about the recipe.
+{{user_context}}
 Recipe: {{recipe_title}}
 Description: {{recipe_description}}
 Ingredients: {{ingredients}}
@@ -47,6 +48,7 @@ Servings: {{servings}}
 Prep time: {{prep_time}}
 Cook time: {{cook_time}}`,
 		variables: [
+			{ name: 'user_context', description: 'Additional context about user preferences and dietary restrictions', sampleValue: 'User is pescatarian and prefers low-sodium recipes' },
 			{ name: 'recipe_title', description: 'The title of the recipe', sampleValue: 'Spaghetti Carbonara' },
 			{ name: 'recipe_description', description: 'Brief description of the recipe', sampleValue: 'Classic Italian pasta dish' },
 			{ name: 'ingredients', description: 'List of ingredients', sampleValue: 'spaghetti, eggs, guanciale, pecorino romano, black pepper' },
@@ -354,6 +356,17 @@ Output ONLY the final prompt. No explanation, no preamble.`,
 		content: `{{prompt}}`,
 		variables: [
 			{ name: 'prompt', description: 'The image generation prompt', sampleValue: 'A beautiful plate of spaghetti carbonara with crispy guanciale and fresh parsley, soft natural lighting, food photography style' }
+		]
+	},
+	[AIFeature.PERSONALIZED_SUGGESTIONS]: {
+		content: `Generate 6 personalized recipe suggestions based on user context and their existing recipe collection.
+User preferences and dietary restrictions: {{user_context}}
+User's existing recipes: {{user_recipes}}
+Consider the user's preferences when generating suggestions. Do NOT suggest recipes that conflict with their dietary restrictions.
+Return ONLY a JSON array of 6 suggestion strings.`,
+		variables: [
+			{ name: 'user_context', description: 'User dietary preferences and restrictions', sampleValue: 'Pescatarian, prefers low-sodium meals, allergic to nuts' },
+			{ name: 'user_recipes', description: "User's existing recipe titles", sampleValue: 'Salmon Teriyaki, Vegetable Stir-fry, Pasta Primavera, Chicken Curry' }
 		]
 	}
 };

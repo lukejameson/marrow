@@ -6,6 +6,9 @@ import { AIServiceV2 } from '$lib/server/ai/service-v2';
 import { AIFeature } from '$lib/server/ai/features';
 import { PromptService } from '$lib/server/ai/prompt-service';
 import { AIConfigurationError, isAIConfigurationError, AIRateLimitError, isAIRateLimitError } from '$lib/utils/errors';
+import { db } from '$lib/server/db/db';
+import { memories } from '$lib/server/db/schema';
+import { eq, desc } from 'drizzle-orm';
 
 const suggestTagsSchema = z.object({
   recipe: z.object({
@@ -34,18 +37,33 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     }
 
     const { recipe, existingTags } = result.data;
+
     const aiService = await AIServiceV2.getInstance();
+
+    const userMemories = await db
+      .select()
+      .from(memories)
+      .where(eq(memories.userId, user.id))
+      .orderBy(desc(memories.createdAt));
+
+    const userContext = userMemories.length > 0
+      ? `User preferences: ${userMemories.map(m => m.content).join('; ')}`
+      : '';
+
     const promptData = await PromptService.getPrompt(AIFeature.TAG_SUGGESTIONS);
     let systemPrompt = promptData?.content || `Suggest 3-7 relevant tags for this recipe. Exclude these existing tags: {{existing_tags}}.
 Recipe: {{recipe_title}}
 Description: {{recipe_description}}
 Ingredients: {{ingredients}}
+{{user_context}}
 Return ONLY a JSON array of tag strings.`;
+
     systemPrompt = PromptService.resolvePromptVariables(systemPrompt, {
       existing_tags: existingTags.join(', ') || 'none',
       recipe_title: recipe.title,
       recipe_description: recipe.description || 'N/A',
-      ingredients: recipe.ingredients.join(', ')
+      ingredients: recipe.ingredients.join(', '),
+      user_context: userContext
     });
     const genResult = await aiService.generateForFeature(AIFeature.TAG_SUGGESTIONS, {
       systemPrompt,

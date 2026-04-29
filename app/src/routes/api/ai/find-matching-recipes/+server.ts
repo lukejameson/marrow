@@ -6,6 +6,9 @@ import { AIServiceV2 } from '$lib/server/ai/service-v2';
 import { AIFeature } from '$lib/server/ai/features';
 import { PromptService } from '$lib/server/ai/prompt-service';
 import { AIConfigurationError, isAIConfigurationError, AIRateLimitError, isAIRateLimitError } from '$lib/utils/errors';
+import { db } from '$lib/server/db/db';
+import { memories } from '$lib/server/db/schema';
+import { eq, desc } from 'drizzle-orm';
 
 const findMatchingSchema = z.object({
   availableIngredients: z.array(z.string()).min(1),
@@ -34,20 +37,36 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     }
 
     const { availableIngredients, recipes } = result.data;
+
     const aiService = await AIServiceV2.getInstance();
+
+    const userMemories = await db
+      .select()
+      .from(memories)
+      .where(eq(memories.userId, user.id))
+      .orderBy(desc(memories.createdAt));
+
+    const userContext = userMemories.length > 0
+      ? `User dietary restrictions: ${userMemories.map(m => m.content).join('; ')}`
+      : '';
+
     const promptData = await PromptService.getPrompt(AIFeature.PANTRY_MATCHING);
     let systemPrompt = promptData?.content || `Find recipes that can be made with available pantry items.
 Available pantry items: {{pantry_items}}
 Recipe ingredients needed: {{recipe_ingredients}}
+{{user_context}}
 Calculate match score and identify:
 - Which recipes can be made completely from pantry
 - Which recipes are missing a few ingredients
-- Best matches overall
+- Best matches overall (respecting dietary restrictions)
 Return a JSON array sorted by match score.`;
+
     const recipeIngredients = recipes.map(r => `${r.title}: ${r.ingredients.join(', ')}`).join('; ');
+
     systemPrompt = PromptService.resolvePromptVariables(systemPrompt, {
       pantry_items: availableIngredients.join(', '),
-      recipe_ingredients: recipeIngredients
+      recipe_ingredients: recipeIngredients,
+      user_context: userContext
     });
     const generationResult = await aiService.generateForFeature(AIFeature.PANTRY_MATCHING, {
       systemPrompt,
