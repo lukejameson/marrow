@@ -75,6 +75,10 @@
   let selectedModel = $state('claude-sonnet-4-20250514');
   let selectedSecondaryModel = $state('claude-3-haiku-20240307');
   let availableModels = $state<Array<{ id: string; name: string }>>([]);
+  let defaultProviderId = $state('anthropic');
+  let defaultModelId = $state('');
+  let defaultProviderModels = $state<Array<{ id: string; name: string; maker: string }>>([]);
+  let savingDefault = $state(false);
 
   // Pexels API settings
   let hasPexelsApiKey = $state(false);
@@ -114,8 +118,11 @@
       selectedModel = settings.model;
       selectedSecondaryModel = settings.secondaryModel;
       availableModels = [...settings.availableModels];
+      defaultProviderId = settings.defaultProviderId || 'anthropic';
+      defaultModelId = settings.defaultModelId || '';
       if (isAdmin) {
         await loadProviderData();
+        await loadDefaultProviderModels();
       }
     } catch (err: any) {
       error = err.message || 'Failed to load settings';
@@ -138,7 +145,30 @@
       console.error('Failed to load provider data:', err);
     }
   }
-
+  async function loadDefaultProviderModels() {
+    if (!defaultProviderId) return;
+    try {
+      const modelsResult = await apiClient.fetchProviderModels(defaultProviderId, 'generation');
+      defaultProviderModels = modelsResult.models.map(m => ({ id: m.id, name: m.name, maker: (m as any).maker || '' }));
+    } catch (err) {
+      console.error('Failed to load default provider models:', err);
+    }
+  }
+  async function handleSaveDefaultModel() {
+    savingDefault = true;
+    try {
+      await apiClient.updateSettings({
+        defaultProviderId,
+        defaultModelId: defaultModelId || null,
+      });
+      success = 'Default AI model saved successfully!';
+      setTimeout(() => { success = ''; }, 3000);
+    } catch (err: any) {
+      error = err.message || 'Failed to save default model';
+    } finally {
+      savingDefault = false;
+    }
+  }
   async function handleTestProvider() {
     if (!selectedProviderId || !providerApiKey.trim()) {
       providerTestResult = { valid: false, error: 'Please select a provider and enter an API key' };
@@ -276,27 +306,26 @@
       error = 'Please configure a provider first';
       return;
     }
-
-    const defaultProvider = configuredProviders[0];
+    const providerToUse = configuredProviders.find(p => p.providerId === defaultProviderId) || configuredProviders[0];
     try {
-      const modelsResult = await apiClient.fetchProviderModels(defaultProvider.providerId, feature.id);
-      const defaultModel = modelsResult.models[0];
-
-      if (!defaultModel) {
+      let modelToUse = defaultModelId;
+      if (!modelToUse) {
+        const modelsResult = await apiClient.fetchProviderModels(providerToUse.providerId, feature.id);
+        modelToUse = modelsResult.models[0]?.id;
+      }
+      if (!modelToUse) {
         error = 'No models available for the default provider';
         return;
       }
-
       await apiClient.updateFeatureConfig({
         featureId: feature.id,
-        providerId: defaultProvider.providerId,
-        modelId: defaultModel.id,
+        providerId: providerToUse.providerId,
+        modelId: modelToUse,
         temperature: feature.defaultTemperature,
         maxTokens: feature.defaultMaxTokens,
         isEnabled: true,
         priority: 0,
       });
-
       success = 'Feature enabled!';
       await loadProviderData();
       setTimeout(() => {
@@ -600,6 +629,40 @@
               <p>Please configure at least one AI provider first.</p>
             </div>
           {:else}
+            <div class="global-default-section">
+              <div class="section-header-row">
+                <div>
+                  <h3>Global Default AI Model</h3>
+                  <p class="section-description">
+                    Set the default provider and model used when no feature-specific configuration exists.
+                  </p>
+                </div>
+                <button class="btn-primary" onclick={handleSaveDefaultModel} disabled={savingDefault}>
+                  {savingDefault ? 'Saving...' : 'Save Default'}
+                </button>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="defaultProvider">Default Provider</label>
+                  <select id="defaultProvider" bind:value={defaultProviderId} onchange={() => loadDefaultProviderModels()}>
+                    {#each configuredProviders as config}
+                      <option value={config.providerId}>
+                        {providerDisplayNames[config.providerId] || config.providerId}
+                      </option>
+                    {/each}
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="defaultModel">Default Model</label>
+                  <SearchableModelSelect
+                    models={defaultProviderModels}
+                    value={defaultModelId}
+                    onselect={(modelId) => defaultModelId = modelId}
+                    placeholder="Search models..."
+                  />
+                </div>
+              </div>
+            </div>
             {#each getCategoryOrder() as category}
               {@const categoryFeatures = groupFeaturesByCategory(features).get(category) || []}
               {#if categoryFeatures.length > 0}

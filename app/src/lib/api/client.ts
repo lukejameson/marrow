@@ -305,6 +305,8 @@ export const apiClient = {
       hasInstagramAppSecret: boolean;
       model: string;
       secondaryModel: string;
+      defaultProviderId: string;
+      defaultModelId: string | null;
       availableModels: Array<{ id: string; name: string }>;
       isAdmin: boolean;
     }>('/api/settings'),
@@ -312,6 +314,8 @@ export const apiClient = {
     anthropicApiKey?: string;
     anthropicModel?: string;
     anthropicSecondaryModel?: string;
+    defaultProviderId?: string;
+    defaultModelId?: string | null;
     pexelsApiKey?: string;
     instagramAppId?: string;
     instagramAppSecret?: string;

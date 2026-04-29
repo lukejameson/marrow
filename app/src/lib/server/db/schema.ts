@@ -290,6 +290,8 @@ export const settings = pgTable('settings', {
   anthropicApiKey: text('anthropic_api_key'),
   anthropicModel: text('anthropic_model').default('claude-3-5-sonnet-20241022'),
   anthropicSecondaryModel: text('anthropic_secondary_model').default('claude-3-haiku-20240307'),
+  defaultProviderId: text('default_provider_id').default('anthropic'),
+  defaultModelId: text('default_model_id'),
   pexelsApiKey: text('pexels_api_key'),
   instagramAppId: text('instagram_app_id'),
   instagramAppSecret: text('instagram_app_secret'),

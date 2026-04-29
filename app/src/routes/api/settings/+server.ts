@@ -74,6 +74,8 @@ export const GET: RequestHandler = async ({ cookies }) => {
       hasInstagramAppSecret: !!appSettings?.instagramAppSecret,
       model: appSettings?.anthropicModel || 'claude-sonnet-4-20250514',
       secondaryModel: appSettings?.anthropicSecondaryModel || 'claude-3-haiku-20240307',
+      defaultProviderId: appSettings?.defaultProviderId || 'anthropic',
+      defaultModelId: appSettings?.defaultModelId || null,
       availableModels,
       isAdmin: isAdminUser,
     });
@@ -108,6 +110,8 @@ export const PUT: RequestHandler = async ({ request, cookies }) => {
       anthropicApiKey: z.string().optional(),
       anthropicModel: z.string().optional(),
       anthropicSecondaryModel: z.string().optional(),
+      defaultProviderId: z.string().optional(),
+      defaultModelId: z.string().nullable().optional(),
       pexelsApiKey: z.string().optional(),
       instagramAppId: z.string().optional(),
       instagramAppSecret: z.string().optional(),
@@ -154,7 +158,12 @@ export const PUT: RequestHandler = async ({ request, cookies }) => {
     if (result.data.anthropicSecondaryModel) {
       updateData.anthropicSecondaryModel = result.data.anthropicSecondaryModel;
     }
-
+    if (result.data.defaultProviderId !== undefined) {
+      updateData.defaultProviderId = result.data.defaultProviderId || null;
+    }
+    if (result.data.defaultModelId !== undefined) {
+      updateData.defaultModelId = result.data.defaultModelId || null;
+    }
     if (existing) {
       await db
         .update(settings)
