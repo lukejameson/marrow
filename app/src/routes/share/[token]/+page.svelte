@@ -1,21 +1,20 @@
 <script lang="ts">
   import type { RecipeItem } from '$lib/server/db/schema';
-
   let { data } = $props();
   let recipe = $derived(data.recipe);
-
+  let photos = $derived(recipe?.photos || []);
+  let mainPhoto = $derived(photos.find((p: any) => p.isMain) || photos[0]);
+  let heroImage = $derived(recipe?.imageUrl || mainPhoto?.urls?.original || null);
   const ingredientTexts = $derived(
     recipe?.ingredients?.items
       ?.toSorted((a: RecipeItem, b: RecipeItem) => (a.order ?? 0) - (b.order ?? 0))
       .map((i: RecipeItem) => i.text) ?? []
   );
-
   const instructionTexts = $derived(
     recipe?.instructions?.items
       ?.toSorted((a: RecipeItem, b: RecipeItem) => (a.order ?? 0) - (b.order ?? 0))
       .map((i: RecipeItem) => i.text) ?? []
   );
-
   function formatTime(minutes: number): string {
     if (minutes < 60) return `${minutes} min`;
     const hours = Math.floor(minutes / 60);
@@ -72,8 +71,15 @@
 
 <div class="share-page">
   <article class="recipe">
-    {#if recipe?.imageUrl}
-      <img src={recipe.imageUrl} alt={recipe.title} class="recipe-image" />
+    {#if heroImage}
+      <img src={heroImage} alt={recipe.title} class="recipe-image" />
+    {/if}
+    {#if photos.length > 1}
+      <div class="photo-gallery">
+        {#each photos as photo}
+          <img src={photo.urls.medium || photo.urls.original} alt={recipe.title} class="gallery-image" />
+        {/each}
+      </div>
     {/if}
     <header class="recipe-header">
       <h1>{recipe?.title}</h1>
@@ -202,6 +208,21 @@
     width: 100%;
     max-height: 400px;
     object-fit: cover;
+  }
+  .photo-gallery {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0 2rem 1.5rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .gallery-image {
+    flex: 0 0 200px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+    scroll-snap-align: start;
   }
 
   .recipe-header {
