@@ -9,7 +9,7 @@
   import AgentSelector, { type SelectedAgentInfo } from '$lib/components/ai/AgentSelector.svelte';
   import Markdown from '$lib/components/Markdown.svelte';
   import ChatHistorySidebar from '$lib/components/chat/ChatHistorySidebar.svelte';
-  import ImageSearchModal from '$lib/components/ImageSearchModal.svelte';
+  import PhotoPicker from '$lib/components/PhotoPicker.svelte';
 
   // Check if user has access to AI chat
   let hasAiChat = $derived(authStore.user?.featureFlags?.aiChat ?? false);
@@ -568,8 +568,8 @@
     showImageSearch = false;
   }
 
-  function handleImageSelect(url: string) {
-    selectedImageUrl = url;
+  function handleImageSelect(photos: { id: string; urls: { thumbnail?: string | null; medium?: string | null; original: string }; width?: number; height?: number }[]) {
+    selectedImageUrl = photos[0]?.urls.original || null;
     showImageSearch = false;
   }
 
@@ -1203,7 +1203,7 @@
                 <circle cx="8.5" cy="8.5" r="1.5"/>
                 <polyline points="21 15 16 10 5 21"/>
               </svg>
-              Search for Image
+              Select Image
             </button>
           {:else}
             <p class="no-image-text">No image will be added (image search not enabled)</p>
@@ -1230,11 +1230,16 @@
 
 <!-- Image Search Modal -->
 {#if showImageSearch && recipeToSave}
-  <ImageSearchModal
-    recipeName={recipeToSave.title}
-    tags={recipeToSave.tags}
-    onSelect={handleImageSelect}
-    onClose={() => showImageSearch = false}
+  <PhotoPicker
+    maxSelectable={1}
+    initialTab="ai"
+    initialQuery={recipeToSave.title}
+    recipeTitle={recipeToSave.title}
+    recipeDescription={recipeToSave.description}
+    recipeIngredients={recipeToSave.ingredients}
+    recipeTags={recipeToSave.tags}
+    onclose={() => showImageSearch = false}
+    onselect={handleImageSelect}
   />
 {/if}
 
