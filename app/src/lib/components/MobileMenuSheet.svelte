@@ -12,6 +12,7 @@
     X,
     ShoppingCart,
     Package,
+    Upload,
   } from 'lucide-svelte';
 
   interface Props {
@@ -117,9 +118,14 @@
             <Package size={22} />
             <span>Pantry</span>
           </button>
+          <button
+            class="menu-item"
+            onclick={() => navigateTo('/recipe/import')}
+          >
+            <Upload size={22} />
+            <span>Import</span>
+          </button>
         </div>
-
-        <!-- User section -->
         <div class="menu-section">
           <h3>Your Account</h3>
           <button

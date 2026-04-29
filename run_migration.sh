@@ -1,0 +1,1 @@
+docker exec 113331e80849 sh -c 'psql "$DATABASE_URL" -f /app/drizzle/0013_mighty_violations.sql'
