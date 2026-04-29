@@ -49,16 +49,28 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 			} else {
 				models = await provider.fetchModels(apiKey);
 			}
+			const makerMap: Record<string, string> = {
+				'anthropic': 'Anthropic',
+				'openai': 'OpenAI',
+				'google': 'Google',
+				'openrouter': 'OpenRouter',
+				'openai-compatible': 'Custom'
+			};
 			return json({
 				providerId,
-				models: models.map((m: any) => ({
-					id: m.id,
-					name: m.name,
-					contextWindow: m.contextWindow,
-					supportsVision: m.supportsVision,
-					supportsJsonMode: m.supportsJsonMode,
-					pricing: m.pricing
-				}))
+				models: models.map((m: any) => {
+					const idParts = m.id.split('/');
+					const maker = idParts.length > 1 ? idParts[0] : (makerMap[providerId] || providerId);
+					return {
+						id: m.id,
+						name: m.name,
+						maker,
+						contextWindow: m.contextWindow,
+						supportsVision: m.supportsVision,
+						supportsJsonMode: m.supportsJsonMode,
+						pricing: m.pricing
+					};
+				})
 			});
 		} catch (err) {
 			console.error('Failed to fetch models:', err);

@@ -359,7 +359,7 @@ export const apiClient = {
     }),
 
   fetchProviderModels: (providerId: string, feature?: string) =>
-    api<{ models: Array<{ id: string; name: string; contextWindow: number; supportsVision: boolean; supportsJsonMode: boolean }> }>(
+    api<{ models: Array<{ id: string; name: string; maker: string; contextWindow: number; supportsVision: boolean; supportsJsonMode: boolean }> }>(
       feature ? `/api/settings/models/${providerId}?feature=${feature}` : `/api/settings/models/${providerId}`
     ),
 

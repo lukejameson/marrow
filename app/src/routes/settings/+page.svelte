@@ -8,6 +8,7 @@
   import StorageSettings from '$lib/components/StorageSettings.svelte';
   import AgentSettings from '$lib/components/AgentSettings.svelte';
   import PromptSettings from '$lib/components/PromptSettings.svelte';
+  import SearchableModelSelect from '$lib/components/SearchableModelSelect.svelte';
   type Provider = {
     id: string;
     name: string;
@@ -66,7 +67,7 @@
   // Feature state
   let features: Feature[] = $state([]);
   let editingFeature: Feature | null = $state(null);
-  let featureModels: Array<{ id: string; name: string }> = $state([]);
+  let featureModels: Array<{ id: string; name: string; maker: string }> = $state([]);
   let loadingFeatureModels = $state(false);
 
   // Legacy AI settings (for backwards compatibility)
@@ -750,7 +751,7 @@
                 loadingFeatureModels = true;
                 try {
                   const result = await apiClient.fetchProviderModels(editingFeature.config.providerId, editingFeature.id);
-                  featureModels = result.models.map(m => ({ id: m.id, name: m.name }));
+                  featureModels = result.models.map(m => ({ id: m.id, name: m.name, maker: m.maker || '' }));
                   editingFeature.config.modelId = featureModels[0]?.id || '';
                 } catch (err) {
                   console.error('Failed to fetch models:', err);
@@ -772,11 +773,12 @@
 
           <div class="form-group">
             <label for="featureModel">Model</label>
-            <select id="featureModel" bind:value={editingFeature.config.modelId}>
-              {#each featureModels as model}
-                <option value={model.id}>{model.name}</option>
-              {/each}
-            </select>
+            <SearchableModelSelect
+              models={featureModels}
+              value={editingFeature.config.modelId}
+              onselect={(modelId) => editingFeature.config.modelId = modelId}
+              placeholder="Search models..."
+            />
           </div>
 
           <div class="form-row">
