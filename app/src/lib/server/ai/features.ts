@@ -16,7 +16,13 @@ export enum AIFeature {
 	RECIPE_MENTION_SEARCH = 'recipe_mention_search',
 	IMAGE_PROMPT_GENERATION = 'image_prompt_generation',
 	IMAGE_GENERATION = 'image_generation',
-	PERSONALIZED_SUGGESTIONS = 'personalized_suggestions'
+	PERSONALIZED_SUGGESTIONS = 'personalized_suggestions',
+	RECIPE_VARIATIONS = 'recipe_variations',
+	MEAL_PLANNING = 'meal_planning',
+	RECIPE_SCALING = 'recipe_scaling',
+	COOKING_COACH = 'cooking_coach',
+	SEASONAL_SUBSTITUTIONS = 'seasonal_substitutions',
+	DETAILED_NUTRITION = 'detailed_nutrition'
 }
 export interface FeatureConfig {
 	feature: AIFeature;
@@ -116,6 +122,36 @@ export const DEFAULT_FEATURE_CONFIGS: Record<AIFeature, { temperature: number; m
 		temperature: 0.7,
 		maxTokens: 2048,
 		requiresVision: false
+	},
+	[AIFeature.RECIPE_VARIATIONS]: {
+		temperature: 0.7,
+		maxTokens: 4096,
+		requiresVision: false
+	},
+	[AIFeature.MEAL_PLANNING]: {
+		temperature: 0.7,
+		maxTokens: 4096,
+		requiresVision: false
+	},
+	[AIFeature.RECIPE_SCALING]: {
+		temperature: 0.4,
+		maxTokens: 2048,
+		requiresVision: false
+	},
+	[AIFeature.COOKING_COACH]: {
+		temperature: 0.5,
+		maxTokens: 4096,
+		requiresVision: false
+	},
+	[AIFeature.SEASONAL_SUBSTITUTIONS]: {
+		temperature: 0.4,
+		maxTokens: 2048,
+		requiresVision: false
+	},
+	[AIFeature.DETAILED_NUTRITION]: {
+		temperature: 0.3,
+		maxTokens: 2048,
+		requiresVision: false
 	}
 };
 export const FEATURE_NAMES: Record<AIFeature, string> = {
@@ -136,7 +172,13 @@ export const FEATURE_NAMES: Record<AIFeature, string> = {
 	[AIFeature.RECIPE_MENTION_SEARCH]: 'Recipe Mention Search',
 	[AIFeature.IMAGE_PROMPT_GENERATION]: 'Image Prompt Generation',
 	[AIFeature.IMAGE_GENERATION]: 'Image Generation',
-	[AIFeature.PERSONALIZED_SUGGESTIONS]: 'Personalized Suggestions'
+	[AIFeature.PERSONALIZED_SUGGESTIONS]: 'Personalized Suggestions',
+	[AIFeature.RECIPE_VARIATIONS]: 'Recipe Variations',
+	[AIFeature.MEAL_PLANNING]: 'Meal Planning',
+	[AIFeature.RECIPE_SCALING]: 'Recipe Scaling',
+	[AIFeature.COOKING_COACH]: 'Cooking Coach',
+	[AIFeature.SEASONAL_SUBSTITUTIONS]: 'Seasonal Substitutions',
+	[AIFeature.DETAILED_NUTRITION]: 'Detailed Nutrition'
 };
 export const FEATURE_DESCRIPTIONS: Record<AIFeature, string> = {
 	[AIFeature.RECIPE_CHAT]: 'General chat about recipes and cooking',
@@ -156,7 +198,13 @@ export const FEATURE_DESCRIPTIONS: Record<AIFeature, string> = {
 	[AIFeature.RECIPE_MENTION_SEARCH]: 'Search for recipes mentioned in text',
 	[AIFeature.IMAGE_PROMPT_GENERATION]: 'Generate image prompts from recipe details',
 	[AIFeature.IMAGE_GENERATION]: 'Generate images from text prompts',
-	[AIFeature.PERSONALIZED_SUGGESTIONS]: 'Generate personalized recipe suggestions based on user preferences'
+	[AIFeature.PERSONALIZED_SUGGESTIONS]: 'Generate personalized recipe suggestions based on user preferences',
+	[AIFeature.RECIPE_VARIATIONS]: 'Create style and flavor variations of existing recipes',
+	[AIFeature.MEAL_PLANNING]: 'Build complete meal plans with appetizers, sides, and desserts',
+	[AIFeature.RECIPE_SCALING]: 'Smart recipe scaling with AI-powered advice',
+	[AIFeature.COOKING_COACH]: 'Step-by-step cooking guidance with timing and technique tips',
+	[AIFeature.SEASONAL_SUBSTITUTIONS]: 'Suggest seasonal ingredient substitutions based on current season',
+	[AIFeature.DETAILED_NUTRITION]: 'Calculate detailed nutritional information with health labels'
 };
 export enum FeatureCategory {
 	CHAT = 'chat',
@@ -182,7 +230,13 @@ export const FEATURE_CATEGORIES: Record<AIFeature, FeatureCategory> = {
 	[AIFeature.RECIPE_MENTION_SEARCH]: FeatureCategory.ANALYSIS,
 	[AIFeature.IMAGE_PROMPT_GENERATION]: FeatureCategory.GENERATION,
 	[AIFeature.IMAGE_GENERATION]: FeatureCategory.GENERATION,
-	[AIFeature.PERSONALIZED_SUGGESTIONS]: FeatureCategory.GENERATION
+	[AIFeature.PERSONALIZED_SUGGESTIONS]: FeatureCategory.GENERATION,
+	[AIFeature.RECIPE_VARIATIONS]: FeatureCategory.ENHANCEMENT,
+	[AIFeature.MEAL_PLANNING]: FeatureCategory.GENERATION,
+	[AIFeature.RECIPE_SCALING]: FeatureCategory.ENHANCEMENT,
+	[AIFeature.COOKING_COACH]: FeatureCategory.ANALYSIS,
+	[AIFeature.SEASONAL_SUBSTITUTIONS]: FeatureCategory.ENHANCEMENT,
+	[AIFeature.DETAILED_NUTRITION]: FeatureCategory.ANALYSIS
 };
 export const CATEGORY_NAMES: Record<FeatureCategory, string> = {
 	[FeatureCategory.CHAT]: 'Chat',

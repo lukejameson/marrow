@@ -9,6 +9,7 @@ import { z } from 'zod';
 const createChatSessionSchema = z.object({
   title: z.string().min(1).max(200),
   agentId: z.string().optional(),
+  recipeId: z.string().optional(),
 });
 
 // GET /api/chat-history - List all chat sessions
@@ -22,14 +23,16 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
     }
 
     const onlyFavorites = url.searchParams.get('onlyFavorites') === 'true';
-
+    const recipeId = url.searchParams.get('recipeId');
     let query = db
       .select()
       .from(chatSessions)
       .where(eq(chatSessions.userId, user.id))
       .orderBy(desc(chatSessions.updatedAt));
-
-    const sessions = await query;
+    let sessions = await query;
+    if (recipeId) {
+      sessions = sessions.filter(s => s.recipeId === recipeId);
+    }
 
     // Filter by favorites if requested
     const filteredSessions = onlyFavorites
@@ -61,25 +64,22 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
       throw error(400, result.error.message);
     }
 
-    const { title, agentId } = result.data;
-
-    // Validate agentId if provided
+    const { title, agentId, recipeId } = result.data;
     if (agentId) {
       const [agent] = await db
         .select({ id: agents.id })
         .from(agents)
         .where(eq(agents.id, agentId))
         .limit(1);
-
       if (!agent) {
         throw error(400, 'Invalid agent ID');
       }
     }
-
     const [newSession] = await db.insert(chatSessions).values({
       userId: user.id,
       title,
       agentId: agentId || null,
+      recipeId: recipeId || null,
       isFavorite: false,
       messageCount: 0,
       createdAt: new Date(),

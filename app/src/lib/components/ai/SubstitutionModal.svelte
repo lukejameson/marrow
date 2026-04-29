@@ -125,7 +125,7 @@
     background: var(--color-surface);
     border-radius: var(--radius-xl);
     width: 100%;
-    max-width: 480px;
+    max-width: 560px;
     max-height: 80vh;
     display: flex;
     flex-direction: column;
@@ -183,6 +183,7 @@
   }
 
   .loading-state .spinner {
+    display: block;
     width: 32px;
     height: 32px;
     border: 3px solid var(--color-border);

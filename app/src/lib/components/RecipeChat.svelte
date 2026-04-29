@@ -126,7 +126,7 @@
 
   // Quick action suggestions
   const quickActions = [
-    { label: 'Suggest a side dish', prompt: 'Suggest a side dish recipe that would pair well with this' },
+    { label: 'Suggest a side dish', prompt: 'Suggest a side dish recipe that would pair well with this. Format your response with a <recipe>...</recipe> block containing JSON with title, description, ingredients (array), instructions (array), prepTime, cookTime, servings, and tags.', returnsRecipe: true },
     { label: 'Scale recipe', prompt: 'How do I scale this recipe to serve 8 people?' },
     { label: 'Substitutions', prompt: 'What are some good ingredient substitutions for this recipe?' },
     { label: 'Make it healthier', prompt: 'How can I make this recipe healthier?' },
@@ -168,8 +168,8 @@
       const recipeData: any = {
         title: genRecipe.title,
         description: genRecipe.description,
-        ingredients: genRecipe.ingredients,
-        instructions: genRecipe.instructions,
+        ingredients: { items: genRecipe.ingredients.map((text, i) => ({ id: crypto.randomUUID(), text, order: i })) },
+        instructions: { items: genRecipe.instructions.map((text, i) => ({ id: crypto.randomUUID(), text, order: i })) },
         prepTime: genRecipe.prepTime,
         cookTime: genRecipe.cookTime,
         servings: genRecipe.servings,
@@ -181,6 +181,13 @@
       }
 
       const newRecipe = await apiClient.createRecipe(recipeData);
+      if (recipe.id) {
+        await apiClient.setComponents(recipe.id, [{
+          childRecipeId: newRecipe.id,
+          servingsNeeded: 1,
+          sortOrder: 0
+        }]);
+      }
       onClose();
       goto(`/recipe/${newRecipe.id}`);
     } catch (err: any) {
@@ -191,7 +198,7 @@
     }
   }
 
-  async function sendMessage(content: string) {
+  async function sendMessage(content: string, returnsRecipe = false) {
     if ((!content.trim() && pendingImages.length === 0) || sending) return;
 
     const imagesToSend = [...pendingImages];
@@ -214,7 +221,8 @@
     }, 0);
 
     try {
-      const result = await apiClient.chatAboutRecipe({
+      const chatFn = returnsRecipe ? apiClient.chatAboutRecipeWithRecipe : apiClient.chatAboutRecipe;
+      const result = await chatFn({
         recipe: {
           title: recipe.title,
           description: recipe.description,
@@ -263,8 +271,8 @@
     sendMessage(inputValue);
   }
 
-  function handleQuickAction(prompt: string) {
-    sendMessage(prompt);
+  function handleQuickAction(prompt: string, returnsRecipe = false) {
+    sendMessage(prompt, returnsRecipe);
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -319,7 +327,7 @@
             <button
               type="button"
               class="quick-action"
-              onclick={() => handleQuickAction(action.prompt)}
+              onclick={() => handleQuickAction(action.prompt, action.returnsRecipe ?? false)}
               disabled={sending}
             >
               {action.label}

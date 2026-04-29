@@ -533,7 +533,11 @@ export const apiClient = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-
+  chatAboutRecipeWithRecipe: (data: { recipe: any; messages: any[] }) =>
+    api<any>('/api/ai/recipe-chat', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   suggestImprovements: (data: { recipe: any }) =>
     api<any>('/api/ai/suggest-improvements', {
       method: 'POST',
@@ -600,7 +604,8 @@ export const apiClient = {
   // Recipe extras
   getComponents: (recipeId: string) =>
     api<any[]>(`/api/recipes/${recipeId}/components`),
-
+  getParentRecipe: (recipeId: string) =>
+    api<{ parent: { id: string; title: string; servingsNeeded: number; sortOrder: number } | null }>(`/api/recipes/${recipeId}/parent`),
   getRelatedRecipes: (id: string, limit?: number) =>
     api<any[]>(`/api/recipes/${id}/related?limit=${limit || 6}`),
 
@@ -706,7 +711,7 @@ export const apiClient = {
   getChatSession: (data: { id: string }) =>
     api<{ session: import('$lib/server/db/schema').ChatSession; messages: import('$lib/server/db/schema').ChatMessage[] }>(`/api/chat-history/${data.id}`),
 
-  createChatSession: (data: { title: string; agentId?: string }) =>
+  createChatSession: (data: { title: string; agentId?: string; recipeId?: string }) =>
     api<import('$lib/server/db/schema').ChatSession>('/api/chat-history', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -721,9 +726,12 @@ export const apiClient = {
   deleteChatMessage: (data: { messageId: string }) =>
     api<{ success: boolean }>(`/api/chat-history/messages/${data.messageId}`, { method: 'DELETE' }),
 
-  listChatSessions: (params?: { onlyFavorites?: boolean }) => {
-    const query = params?.onlyFavorites ? '?onlyFavorites=true' : '';
-    return api<any[]>(`/api/chat-history${query}`);
+  listChatSessions: (params?: { onlyFavorites?: boolean; recipeId?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.onlyFavorites) searchParams.set('onlyFavorites', 'true');
+    if (params?.recipeId) searchParams.set('recipeId', params.recipeId);
+    const query = searchParams.toString();
+    return api<any[]>(`/api/chat-history${query ? `?${query}` : ''}`);
   },
 
   searchChatSessions: (params: { query: string; searchIn?: string }) => {
@@ -897,6 +905,36 @@ getAuditLogActions: () =>
       body: JSON.stringify(rest),
     });
   },
+  suggestVariations: (data: { recipe: { title: string; ingredients: string[]; instructions: string[] } }) =>
+    api<{ variations: Array<{ name: string; description: string; keyChanges: string[]; adaptedIngredients: string[]; addedIngredients: string[]; removedIngredients: string[] }> }>('/api/ai/suggest-variations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  planMeal: (data: { mainDish: { title: string; ingredients: string[]; instructions: string[] }; timeAvailable?: number; dietaryPrefs?: string[] }) =>
+    api<{ mealPlan: Record<string, any> }>('/api/ai/plan-meal', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getScalingAdvice: (data: { recipe: { title: string; ingredients: string[]; instructions: string[] }; targetServings?: number; panSize?: string }) =>
+    api<{ scaling: Record<string, any> }>('/api/ai/scale-recipe', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getCookingCoach: (data: { recipe: { title: string; ingredients: string[]; instructions: string[] }; skillLevel?: string }) =>
+    api<{ coaching: Record<string, any> }>('/api/ai/cooking-coach', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getSeasonalSubstitutions: (data: { recipe: { title: string; ingredients: string[] } }) =>
+    api<{ seasonal: Record<string, any> }>('/api/ai/seasonal-substitutions', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getDetailedNutrition: (data: { recipe: { title: string; ingredients: string[] }; servings: number }) =>
+    api<{ nutrition: Record<string, any> }>('/api/ai/detailed-nutrition', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   health: () =>
     api<{ status: string; timestamp: string }>('/api/health'),
 };

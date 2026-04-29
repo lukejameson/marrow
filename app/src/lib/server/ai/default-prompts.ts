@@ -368,6 +368,169 @@ Return ONLY a JSON array of 6 suggestion strings.`,
 			{ name: 'user_context', description: 'User dietary preferences and restrictions', sampleValue: 'Pescatarian, prefers low-sodium meals, allergic to nuts' },
 			{ name: 'user_recipes', description: "User's existing recipe titles", sampleValue: 'Salmon Teriyaki, Vegetable Stir-fry, Pasta Primavera, Chicken Curry' }
 		]
+	},
+	[AIFeature.RECIPE_VARIATIONS]: {
+		content: `Create 3-5 variations of this recipe with different styles or flavor profiles.
+Recipe: {{recipe_title}}
+Ingredients: {{ingredients}}
+Instructions: {{instructions}}
+Return a JSON array of variation objects:
+[
+  {
+    "name": "Variation name (e.g., Spicy Thai Version, Italian Style, Quick Weeknight)",
+    "description": "Brief description of this variation",
+    "keyChanges": ["change 1", "change 2"],
+    "adaptedIngredients": ["adapted ingredient 1 with quantity", "adapted ingredient 2"],
+    "addedIngredients": ["new ingredients to add"],
+    "removedIngredients": ["ingredients to omit"]
+  }
+]`,
+		variables: [
+			{ name: 'recipe_title', description: 'The recipe title', sampleValue: 'Chicken Stir Fry' },
+			{ name: 'ingredients', description: 'List of ingredients', sampleValue: '500g chicken breast, 2 cups broccoli, 1/4 cup soy sauce' },
+			{ name: 'instructions', description: 'Step-by-step instructions', sampleValue: '1. Cut chicken; 2. Stir fry broccoli; 3. Add sauce; 4. Serve' }
+		]
+	},
+	[AIFeature.MEAL_PLANNING]: {
+		content: `Create a complete meal plan featuring this recipe as the main dish.
+Main dish: {{recipe_title}}
+Available time: {{time_available}} minutes
+Dietary preferences: {{dietary_preferences}}
+Current season: {{current_season}}
+Return a JSON object:
+{
+  "mealName": "Name for this complete meal",
+  "mainDish": { "name": "{{recipe_title}}", "notes": "how to plate/present" },
+  "appetizer": { "name": "Appetizer name", "description": "Brief description", "prepTime": 15 },
+  "sideDish1": { "name": "Side dish name", "description": "Brief description", "prepTime": 10 },
+  "sideDish2": { "name": "Second side dish name", "description": "Brief description", "prepTime": 10 },
+  "dessert": { "name": "Dessert name", "description": "Brief description", "prepTime": 20 },
+  "winePairing": "Wine recommendation",
+  "totalTime": total minutes for all components,
+  "instructions": ["Step-by-step timing guide for preparing all components efficiently"]
+}`,
+		variables: [
+			{ name: 'recipe_title', description: 'The main dish recipe title', sampleValue: 'Grilled Salmon with Lemon Herb Butter' },
+			{ name: 'time_available', description: 'Total time available in minutes', sampleValue: '90' },
+			{ name: 'dietary_preferences', description: 'Dietary preferences or restrictions', sampleValue: 'No restrictions' },
+			{ name: 'current_season', description: 'Current season', sampleValue: 'Summer' }
+		]
+	},
+	[AIFeature.RECIPE_SCALING]: {
+		content: `Provide scaling advice for this recipe.
+Recipe: {{recipe_title}}
+Original servings: {{original_servings}}
+Target: {{target_servings}} servings (or pan size: {{pan_size}})
+Ingredients: {{ingredients}}
+Return a JSON object:
+{
+  "scaleFactor": number (e.g., 1.5),
+  "scaledServings": number,
+  "adjustedIngredients": [
+    { "original": "2 cups flour", "scaled": "3 cups flour", "notes": "adjust liquid if needed" }
+  ],
+  "scalingNotes": ["important scaling considerations"],
+  "equipmentAdvice": "pan size or pot size advice if relevant"
+}`,
+		variables: [
+			{ name: 'recipe_title', description: 'The recipe title', sampleValue: 'Chocolate Chip Cookies' },
+			{ name: 'original_servings', description: 'Original number of servings', sampleValue: '24' },
+			{ name: 'target_servings', description: 'Desired number of servings', sampleValue: '48' },
+			{ name: 'pan_size', description: 'Target pan size if scaling by pan', sampleValue: '9x13' },
+			{ name: 'ingredients', description: 'List of ingredients with quantities', sampleValue: '2 cups flour, 1 cup butter, 1 cup sugar' }
+		]
+	},
+	[AIFeature.COOKING_COACH]: {
+		content: `Create a step-by-step cooking guide for this recipe with timing estimates.
+Recipe: {{recipe_title}}
+Ingredients: {{ingredients}}
+Instructions: {{instructions}}
+Skill level: {{skill_level}}
+Return a JSON object:
+{
+  "steps": [
+    {
+      "stepNumber": 1,
+      "phase": "Preparation|Main Cooking|Finishing",
+      "instruction": "detailed instruction",
+      "estimatedMinutes": 5,
+      "technique": "key technique to focus on",
+      "tip": "pro tip for this step",
+      "watchFor": "signs this step is going well or wrong",
+      "canDoAhead": "what can be prepped ahead if any"
+    }
+  ],
+  "totalEstimatedTime": total minutes,
+  "difficulty": "easy|medium|hard",
+  "keyTechniques": ["technique 1", "technique 2"],
+  "commonMistakes": ["mistake 1", "mistake 2"],
+  "makeAheadTips": ["tip 1", "tip 2"]
+}`,
+		variables: [
+			{ name: 'recipe_title', description: 'The recipe title', sampleValue: 'Beef Bourguignon' },
+			{ name: 'ingredients', description: 'List of ingredients', sampleValue: '1kg beef chuck, 750ml red wine, carrots, onions, mushrooms' },
+			{ name: 'instructions', description: 'Step-by-step instructions', sampleValue: '1. Brown beef; 2. Saute vegetables; 3. Deglaze; 4. Braise 2 hours' },
+			{ name: 'skill_level', description: "User's skill level preference", sampleValue: 'intermediate' }
+		]
+	},
+	[AIFeature.SEASONAL_SUBSTITUTIONS]: {
+		content: `Suggest seasonal ingredient substitutions for this recipe.
+Current season: {{current_season}} (Spring/Summer/Fall/Winter)
+Recipe: {{recipe_title}}
+Ingredients: {{ingredients}}
+Return a JSON object:
+{
+  "season": "{{current_season}}",
+  "substitutions": [
+    {
+      "originalIngredient": "tomatoes",
+      "seasonalAlternative": "cherry tomatoes or roasted red peppers",
+      "reason": "fresh tomatoes are out of season; these alternatives are at peak",
+      "bestFor": ["fresh eating", "sauteing"],
+      "swapRatio": "1:1",
+      "seasonAvailability": "year-round"
+    }
+  ],
+  "seasonalIngredients": ["ingredients that ARE in season now"],
+  "avoidIngredients": ["ingredients that are not at peak quality now"]
+}`,
+		variables: [
+			{ name: 'current_season', description: 'Current season', sampleValue: 'Winter' },
+			{ name: 'recipe_title', description: 'The recipe title', sampleValue: 'Caprese Salad' },
+			{ name: 'ingredients', description: 'List of ingredients', sampleValue: 'tomatoes, fresh mozzarella, basil, olive oil' }
+		]
+	},
+	[AIFeature.DETAILED_NUTRITION]: {
+		content: `Calculate detailed nutritional information per serving.
+Recipe: {{recipe_title}}
+Servings: {{servings}}
+Ingredients: {{ingredients}}
+Return a JSON object:
+{
+  "perServing": {
+    "calories": number,
+    "protein": number,
+    "carbohydrates": number,
+    "fat": number,
+    "saturatedFat": number,
+    "fiber": number,
+    "sugar": number,
+    "sodium": number,
+    "cholesterol": number,
+    "vitaminA": number,
+    "vitaminC": number,
+    "calcium": number,
+    "iron": number
+  },
+  "healthLabels": ["high-protein", "low-carb", "gluten-free", "dairy-free", "heart-healthy", "low-sodium"],
+  "dietaryFlags": ["contains-nuts", "contains-dairy", "contains-gluten", "contains-soy"],
+  "macrosPercentage": { "protein": percentage, "carbs": percentage, "fat": percentage }
+}`,
+		variables: [
+			{ name: 'recipe_title', description: 'The recipe title', sampleValue: 'Grilled Chicken Salad' },
+			{ name: 'servings', description: 'Number of servings', sampleValue: '4' },
+			{ name: 'ingredients', description: 'List of ingredients with quantities', sampleValue: '500g chicken breast, 4 cups mixed greens, 1 cup cherry tomatoes' }
+		]
 	}
 };
 

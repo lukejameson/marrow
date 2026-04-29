@@ -42,8 +42,8 @@
   // Components for compound recipes
   let components = $state<any[]>([]);
   let aggregatedNutrition = $state<any>(null);
+  let parentRecipe = $state<{ id: string; title: string } | null>(null);
 
-  // AI nutrition calculation
   let calculatingNutrition = $state(false);
   let nutritionError = $state('');
 
@@ -378,6 +378,12 @@
         aggregatedNutrition = null;
       }
       await loadShareStatus();
+      try {
+        const parentResult = await apiClient.getParentRecipe($page.params.id);
+        parentRecipe = parentResult?.parent || null;
+      } catch {
+        parentRecipe = null;
+      }
     } catch (err: any) {
       error = err.message || 'Failed to load recipe';
     } finally {
@@ -902,11 +908,15 @@
         {/if}
 
         <h1>{recipe.title}</h1>
-
+        {#if parentRecipe}
+          <a href={`/recipe/${parentRecipe.id}`} class="part-of-badge">
+            <span class="badge-icon">↳</span>
+            Part of: {parentRecipe.title}
+          </a>
+        {/if}
         {#if recipe.description}
           <p class="description">{recipe.description}</p>
         {/if}
-
         <div class="meta">
           {#if recipe.prepTime}
             <div class="meta-item">
@@ -1578,7 +1588,26 @@
     color: var(--color-text-secondary);
     margin-bottom: var(--spacing-6);
   }
-
+  .part-of-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    background: var(--color-primary-light, #e0e7ff);
+    color: var(--color-primary, #4f46e5);
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    text-decoration: none;
+    margin-bottom: var(--spacing-4);
+  }
+  .part-of-badge:hover {
+    background: var(--color-primary, #4f46e5);
+    color: white;
+  }
+  .badge-icon {
+    font-size: var(--text-base);
+  }
   .meta {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

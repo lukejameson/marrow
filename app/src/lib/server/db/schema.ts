@@ -464,6 +464,7 @@ export const chatSessions = pgTable('chat_sessions', {
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   agentId: text('agent_id').references(() => agents.id, { onDelete: 'set null' }),
+  recipeId: text('recipe_id').references(() => recipes.id, { onDelete: 'cascade' }),
   isFavorite: boolean('is_favorite').notNull().default(false),
   lastMessagePreview: text('last_message_preview'),
   messageCount: integer('message_count').notNull().default(0),

@@ -368,8 +368,9 @@
 
   .modal-header h3 {
     margin: 0;
-    font-size: var(--text-lg);
-    font-weight: 600;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--color-text-light);
   }
 
   .recipe-name {
@@ -407,6 +408,7 @@
   }
 
   .loading-state .spinner {
+    display: block;
     width: 32px;
     height: 32px;
     border: 3px solid var(--color-border);
