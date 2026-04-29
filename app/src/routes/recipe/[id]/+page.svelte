@@ -16,6 +16,7 @@
   import AdaptRecipeModal from '$lib/components/ai/AdaptRecipeModal.svelte';
   import TechniqueTooltip from '$lib/components/ai/TechniqueTooltip.svelte';
   import RecipeChat from '$lib/components/RecipeChat.svelte';
+  import RecipeChatHistory from '$lib/components/chat/RecipeChatHistory.svelte';
   import LoadingSkeleton from '$lib/components/LoadingSkeleton.svelte';
 
   let recipe = $state<any>(null);
@@ -56,6 +57,8 @@
   let selectedTechnique = $state<{ term: string; definition: string; steps?: string[]; tips?: string[] } | null>(null);
   let loadingTechnique = $state(false);
   let showChat = $state(false);
+  let showChatHistory = $state(false);
+  let chatSessionId = $state<string | null>(null);
   let showMoreMenu = $state(false);
   let generatingPdf = $state(false);
   let isShared = $state(false);
@@ -800,9 +803,25 @@
           <span>{shoppingListMessage}</span>
         </div>
       {/if}
+      {#if showChatHistory && !cookingMode}
+        <div class="chat-panel">
+          <RecipeChatHistory
+            recipeId={recipe.id}
+            recipeTitle={recipe.title}
+            onClose={() => showChatHistory = false}
+            onSessionSelect={(sessionId) => { chatSessionId = sessionId; showChatHistory = false; showChat = true; }}
+            onNewChat={() => { chatSessionId = null; showChatHistory = false; showChat = true; }}
+          />
+        </div>
+      {/if}
       {#if showChat && !cookingMode}
         <div class="chat-panel">
-          <RecipeChat {recipe} onClose={() => showChat = false} />
+          <RecipeChat
+            {recipe}
+            onClose={() => { showChat = false; chatSessionId = null; }}
+            onShowHistory={() => { showChat = false; showChatHistory = true; }}
+            bind:sessionId={chatSessionId}
+          />
         </div>
       {/if}
 

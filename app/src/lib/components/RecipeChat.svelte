@@ -24,7 +24,8 @@
     recipe?: GeneratedRecipe;
   }
 
-  interface Recipe {
+interface Recipe {
+    id?: string;
     title: string;
     description?: string;
     ingredients: RecipeItemList;
@@ -33,14 +34,18 @@
     cookTime?: number;
     servings?: number;
     tags?: Array<{ name: string }>;
+    notes?: string;
   }
-
   let {
     recipe,
     onClose,
+    onShowHistory,
+    sessionId = $bindable(null),
   }: {
     recipe: Recipe;
     onClose: () => void;
+    onShowHistory?: () => void;
+    sessionId?: string | null;
   } = $props();
 
   let hasImageSearch = $derived(authStore.user?.featureFlags?.imageSearch ?? false);
@@ -54,6 +59,9 @@
   let savingRecipe = $state(false);
   let savingStatus = $state('');
   let isMobile = $state(false);
+  let savingNote = $state(false);
+  let noteSaveStatus = $state('');
+  let sessionError = $state('');
 
   // Check for mobile viewport
   $effect(() => {
@@ -66,6 +74,23 @@
       return () => window.removeEventListener('resize', checkMobile);
     }
   });
+  $effect(() => {
+    if (sessionId) {
+      loadSession(sessionId);
+    }
+  });
+  async function loadSession(id: string) {
+    try {
+      const { session, messages: loadedMessages } = await apiClient.getChatSession({ id });
+      messages = loadedMessages.map((m) => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+        images: m.images ?? undefined,
+      }));
+    } catch (err) {
+      console.error('Failed to load chat session:', err);
+    }
+  }
 
   async function compressImage(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -200,7 +225,6 @@
 
   async function sendMessage(content: string, returnsRecipe = false) {
     if ((!content.trim() && pendingImages.length === 0) || sending) return;
-
     const imagesToSend = [...pendingImages];
     error = '';
     const userMessage: Message = {
@@ -212,15 +236,33 @@
     inputValue = '';
     pendingImages = [];
     sending = true;
-
-    // Scroll to bottom
     setTimeout(() => {
       if (messagesContainer) {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
       }
     }, 0);
-
     try {
+      if (!sessionId && recipe.id) {
+        const title = `Chat about ${recipe.title}`;
+        const newSession = await apiClient.createChatSession({
+          title,
+          recipeId: recipe.id,
+        });
+        sessionId = newSession.id;
+      }
+      if (sessionId) {
+        try {
+          await apiClient.addChatMessage({
+            sessionId,
+            role: 'user',
+            content: userMessage.content,
+            images: userMessage.images,
+          });
+        } catch (msgErr) {
+          console.error('Failed to save user message:', msgErr);
+          sessionError = 'Some messages may not be saved';
+        }
+      }
       const chatFn = returnsRecipe ? apiClient.chatAboutRecipeWithRecipe : apiClient.chatAboutRecipe;
       const result = await chatFn({
         recipe: {
@@ -239,25 +281,33 @@
           images: m.images,
         })),
       });
-
       const assistantMessage: Message = {
         role: 'assistant',
         content: result.message,
         recipe: result.recipe,
       };
       messages = [...messages, assistantMessage];
+      if (sessionId) {
+        try {
+          await apiClient.addChatMessage({
+            sessionId,
+            role: 'assistant',
+            content: assistantMessage.content,
+          });
+        } catch (msgErr) {
+          console.error('Failed to save assistant message:', msgErr);
+          sessionError = 'Some messages may not be saved';
+        }
+      }
     } catch (err: any) {
-      // Check for 503 error (AI not configured)
       if (err.status === 503 || err.message?.includes('not configured')) {
         error = 'AI features are not configured. Please ask your administrator to set up the Anthropic API key.';
       } else {
         error = err.message || 'Failed to get response';
       }
-      // Remove the user message if we failed
       messages = messages.slice(0, -1);
     } finally {
       sending = false;
-      // Scroll to bottom after response
       setTimeout(() => {
         if (messagesContainer) {
           messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -265,7 +315,6 @@
       }, 0);
     }
   }
-
   function handleSubmit(e: Event) {
     e.preventDefault();
     sendMessage(inputValue);
@@ -286,6 +335,43 @@
     messages = [];
     pendingImages = [];
     error = '';
+    sessionError = '';
+  }
+  function stripMarkdown(text: string): string {
+    return text
+      .replace(/#{1,6}\s?/g, '')
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/\*(.+?)\*/g, '$1')
+      .replace(/`(.+?)`/g, '$1')
+      .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+      .replace(/!\[.+?\]\(.+?\)/g, '')
+      .replace(/^\s*[-*+]\s+/gm, '')
+      .replace(/^\s*\d+\.\s+/gm, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+  async function saveToNotes(messageContent: string) {
+    if (!recipe.id || savingNote) return;
+    savingNote = true;
+    noteSaveStatus = 'Saving...';
+    try {
+      const currentNotes = recipe.notes || '';
+      const timestamp = new Date().toLocaleString();
+      const strippedContent = stripMarkdown(messageContent);
+      const newNote = currentNotes
+        ? `${currentNotes}\n\n---\n**AI Chat (${timestamp})**\n${strippedContent}`
+        : `**AI Chat (${timestamp})**\n${strippedContent}`;
+      await apiClient.updateRating(recipe.id, { notes: newNote });
+      noteSaveStatus = 'Saved!';
+      setTimeout(() => {
+        noteSaveStatus = '';
+      }, 2000);
+    } catch (err: any) {
+      noteSaveStatus = 'Failed to save';
+      console.error('Failed to save note:', err);
+    } finally {
+      savingNote = false;
+    }
   }
 </script>
 
@@ -306,6 +392,17 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="3 6 5 6 21 6" />
             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
+        </button>
+      {/if}
+      {#if onShowHistory}
+        <button type="button" class="btn-history" onclick={onShowHistory} title="Chat History">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
           </svg>
         </button>
       {/if}
@@ -342,6 +439,26 @@
             {#if message.role === 'assistant'}
               <div class="message-text">
                 <Markdown content={message.content} />
+              </div>
+              <div class="message-actions">
+                <button
+                  type="button"
+                  class="btn-save-note"
+                  onclick={() => saveToNotes(message.content)}
+                  disabled={savingNote || !recipe.id}
+                  title={recipe.id ? "Save to recipe notes" : "Recipe ID not available"}
+                >
+                  {#if savingNote && noteSaveStatus}
+                    {noteSaveStatus}
+                  {:else}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                      <polyline points="17 21 17 13 7 13 7 21"/>
+                      <polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    Save to Notes
+                  {/if}
+                </button>
               </div>
               {#if message.recipe}
                 <div class="recipe-card">
@@ -429,6 +546,9 @@
 
   {#if error}
     <div class="chat-error">{error}</div>
+  {/if}
+  {#if sessionError}
+    <div class="chat-session-error">{sessionError}</div>
   {/if}
 
   {#if pendingImages.length > 0}
@@ -543,7 +663,8 @@
   }
 
   .btn-clear,
-  .btn-close {
+  .btn-close,
+  .btn-history {
     background: none;
     border: none;
     padding: var(--spacing-2);
@@ -555,6 +676,24 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+  .btn-clear:hover,
+  .btn-close:hover,
+  .btn-history:hover {
+    background: var(--color-border-light);
+  }
+  .btn-clear svg,
+  .btn-close svg,
+  .btn-history svg {
+    width: 18px;
+    height: 18px;
+    color: var(--color-text-light);
+  }
+  .btn-close:hover svg {
+    color: var(--color-error);
+  }
+  .btn-history:hover svg {
+    color: var(--color-primary);
   }
 
   .btn-clear:hover,
@@ -714,7 +853,35 @@
     opacity: 0.7;
     cursor: not-allowed;
   }
-
+  .message-actions {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: var(--spacing-2);
+    padding-top: var(--spacing-2);
+    border-top: 1px solid var(--color-border-light);
+  }
+  .btn-save-note {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    padding: var(--spacing-1) var(--spacing-2);
+    background: transparent;
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--text-xs);
+    cursor: pointer;
+    transition: var(--transition-fast);
+  }
+  .btn-save-note:hover:not(:disabled) {
+    background: var(--color-bg-subtle);
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+  }
+  .btn-save-note:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
   .btn-spinner {
     display: inline-block;
     width: 12px;
@@ -841,7 +1008,13 @@
     font-size: var(--text-sm);
     text-align: center;
   }
-
+  .chat-session-error {
+    padding: var(--spacing-2) var(--spacing-4);
+    background: #fef9c3;
+    color: #854d0e;
+    font-size: var(--text-sm);
+    text-align: center;
+  }
   .chat-input {
     display: flex;
     gap: var(--spacing-2);
