@@ -700,6 +700,9 @@
     const lastUserMessage = messages[messages.length - 2];
     messages = messages.slice(0, -1);
 
+    // Restore images from the original message
+    pendingImages = lastUserMessage.images || [];
+
     // Resend the last user message
     await sendMessage(lastUserMessage.content);
   }
@@ -712,6 +715,9 @@
 
     // Remove all messages after this one
     messages = messages.slice(0, index);
+
+    // Restore images from the original message
+    pendingImages = messageToResend.images || [];
 
     // Resend the message
     await sendMessage(messageToResend.content);

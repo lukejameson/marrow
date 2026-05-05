@@ -29,7 +29,20 @@ When the user asks for a recipe or describes what they want to make, you should 
   "tags": ["tag1", "tag2"]
 }
 </recipe>
-The prepTime and cookTime are in minutes. Only include the JSON block when providing a complete recipe.`,
+The prepTime and cookTime are in minutes. Only include the JSON block when providing a complete recipe.
+
+When listing ingredients, organize them into logical groups for easier reading. Use group headers ending with a colon, like this:
+"ingredients": [
+  "Produce:",
+  "2 cups diced onions",
+  "3 cloves garlic, minced",
+  "Spices & Herbs:",
+  "1 tsp ground cumin",
+  "1/2 tsp smoked paprika",
+  "Proteins:",
+  "500g chicken breast, cubed"
+]
+Group related items together (e.g., produce, spices, proteins, dairy, pantry staples, liquids) so the user can quickly scan and gather ingredients.`,
 		variables: [
 			{ name: 'user_context', description: 'Additional context about user preferences', sampleValue: 'User prefers low-sodium recipes' },
 			{ name: 'referenced_recipes', description: 'List of recipes the user is referring to', sampleValue: '' }
@@ -65,7 +78,7 @@ Your response MUST be a valid JSON object with these exact fields:
 {
   "title": "string - Recipe name",
   "description": "string - Brief description of the dish",
-  "ingredients": ["array of ingredient strings with quantities, e.g., '2 cups flour'"],
+  "ingredients": ["array of ingredient strings with quantities, grouped logically with headers ending in ':' like 'Spices & Herbs:', e.g., '2 cups flour'"],
   "instructions": ["array of step-by-step instructions"],
   "prepTime": number (minutes, optional),
   "cookTime": number (minutes, optional),
@@ -91,7 +104,7 @@ Important:
 {
   "title": "Recipe name",
   "description": "Brief description",
-  "ingredients": ["list of ingredients found"],
+  "ingredients": ["list of ingredients found, grouped logically with headers ending in ':' like 'Spices & Herbs:'"],
   "instructions": ["step-by-step instructions"],
   "prepTime": number (minutes, optional),
   "cookTime": number (minutes, optional),
@@ -110,7 +123,7 @@ Return a JSON object with:
 {
   "title": "Recipe name",
   "description": "Brief description from caption",
-  "ingredients": ["list of ingredients"],
+  "ingredients": ["list of ingredients, grouped logically with headers ending in ':' like 'Spices & Herbs:'"],
   "instructions": ["step-by-step instructions"],
   "tags": ["relevant tags"]
 }

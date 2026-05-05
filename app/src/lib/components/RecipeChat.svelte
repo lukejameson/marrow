@@ -166,7 +166,7 @@ interface Recipe {
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   }
 
-  async function saveRecommendedRecipe(genRecipe: GeneratedRecipe) {
+  async function saveRecommendedRecipe(genRecipe: GeneratedRecipe, notes?: string) {
     savingRecipe = true;
     savingStatus = 'Saving recipe...';
     try {
@@ -203,6 +203,10 @@ interface Recipe {
 
       if (imageUrl) {
         recipeData.imageUrl = imageUrl;
+      }
+
+      if (notes) {
+        recipeData.notes = notes;
       }
 
       const newRecipe = await apiClient.createRecipe(recipeData);
@@ -466,7 +470,7 @@ interface Recipe {
                     <h4>{message.recipe.title}</h4>
                     <button
                       class="btn-save"
-                      onclick={() => saveRecommendedRecipe(message.recipe!)}
+                      onclick={() => saveRecommendedRecipe(message.recipe!, message.content)}
                       disabled={savingRecipe}
                     >
                       {#if savingRecipe}
@@ -504,7 +508,11 @@ interface Recipe {
                       <h5>Ingredients</h5>
                       <ul>
                         {#each message.recipe.ingredients as ingredient}
-                          <li>{ingredient}</li>
+                          {#if ingredient.trim().endsWith(':')}
+                            <li class="ingredient-group-header">{ingredient.replace(/:$/, '')}</li>
+                          {:else}
+                            <li>{ingredient}</li>
+                          {/if}
                         {/each}
                       </ul>
                     </div>
@@ -964,6 +972,20 @@ interface Recipe {
 
   .recipe-section li {
     margin-bottom: 2px;
+  }
+
+  .ingredient-group-header {
+    list-style: none;
+    margin-left: calc(-1 * var(--spacing-4));
+    margin-top: var(--spacing-2);
+    margin-bottom: var(--spacing-1);
+    font-weight: var(--font-semibold);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+  }
+
+  .ingredient-group-header:first-child {
+    margin-top: 0;
   }
 
   .typing {

@@ -87,24 +87,7 @@
         >
           Recipe Ideas
         </a>
-        <a
-          href="/collections"
-          class:active={$page.url.pathname.startsWith('/collections')}
-        >
-          Collections
-        </a>
-        <a
-          href="/shopping-list"
-          class:active={$page.url.pathname.startsWith('/shopping-list')}
-        >
-          Shopping List
-        </a>
-        <a
-          href="/pantry"
-          class:active={$page.url.pathname.startsWith('/pantry')}
-        >
-          Pantry
-        </a>
+
         <div class="user-menu-container">
           <button
             class="user-menu-btn"
@@ -124,6 +107,21 @@
 
           {#if userMenuOpen}
             <div class="user-dropdown">
+              <a href="/collections" class:active={$page.url.pathname.startsWith('/collections')} onclick={closeUserMenu}>
+                <FolderOpen size={18} />
+                Collections
+              </a>
+              <a href="/shopping-list" class:active={$page.url.pathname.startsWith('/shopping-list')} onclick={closeUserMenu}>
+                <ShoppingCart size={18} />
+                Shopping List
+              </a>
+              <a href="/pantry" class:active={$page.url.pathname.startsWith('/pantry')} onclick={closeUserMenu}>
+                <Package size={18} />
+                Pantry
+              </a>
+
+              <div class="dropdown-divider"></div>
+
               <a href="/tags" class:active={$page.url.pathname === '/tags'} onclick={closeUserMenu}>
                 <Tag size={18} />
                 Tags
