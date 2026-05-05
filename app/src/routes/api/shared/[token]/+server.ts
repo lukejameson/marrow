@@ -62,7 +62,12 @@ export const GET: RequestHandler = async ({ params }) => {
       },
     }));
 
-    const normalizedRecipe = normalizeRecipeData(recipe);
+    const mainPhotoUrl = photosResult.find(p => p.isMain)?.urls?.original || photosResult[0]?.urls?.original;
+    const sharedImageUrl = recipe.imageUrl?.startsWith('/api/photos/serve/')
+      ? (mainPhotoUrl || null)
+      : recipe.imageUrl;
+
+    const normalizedRecipe = normalizeRecipeData({ ...recipe, imageUrl: sharedImageUrl });
     return json({
       ...normalizedRecipe,
       tags: recipeTagsResult.map(rt => rt.name),

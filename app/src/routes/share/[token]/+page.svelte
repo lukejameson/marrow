@@ -4,7 +4,7 @@
   let recipe = $derived(data.recipe);
   let photos = $derived(recipe?.photos || []);
   let mainPhoto = $derived(photos.find((p: any) => p.isMain) || photos[0]);
-  let heroImage = $derived(recipe?.imageUrl || mainPhoto?.urls?.original || null);
+  let heroImage = $derived(mainPhoto?.urls?.original || recipe?.imageUrl || null);
   const ingredientTexts = $derived(
     recipe?.ingredients?.items
       ?.toSorted((a: RecipeItem, b: RecipeItem) => (a.order ?? 0) - (b.order ?? 0))

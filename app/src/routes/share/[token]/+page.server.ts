@@ -60,9 +60,15 @@ export const load: PageServerLoad = async ({ params }) => {
     },
   }));
 
+  const mainPhotoUrl = photosResult.find(p => p.isMain)?.urls?.original || photosResult[0]?.urls?.original;
+  const sharedImageUrl = recipe.imageUrl?.startsWith('/api/photos/serve/')
+    ? (mainPhotoUrl || null)
+    : recipe.imageUrl;
+
   return {
     recipe: {
       ...recipe,
+      imageUrl: sharedImageUrl,
       tags: recipeTagsResult.map(rt => rt.name),
       photos: photosResult,
     },
