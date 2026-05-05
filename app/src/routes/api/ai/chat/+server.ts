@@ -4,11 +4,17 @@ import { getCurrentUser } from '$lib/server/auth';
 import { AIServiceV2 } from '$lib/server/ai/service-v2';
 import { AIFeature } from '$lib/server/ai/features';
 import { PromptService } from '$lib/server/ai/prompt-service';
-import type { Message } from '$lib/server/ai/providers';
+import type { Message, ImageData } from '$lib/server/ai/providers';
 import { AIConfigurationError, isAIConfigurationError, AIRateLimitError, isAIRateLimitError } from '$lib/utils/errors';
 import { db } from '$lib/server/db/db';
 import { memories } from '$lib/server/db/schema';
 import { eq, desc } from 'drizzle-orm';
+
+function parseDataUrl(dataUrl: string): ImageData | null {
+  const match = dataUrl.match(/^data:(.+?);base64,(.+)$/);
+  if (!match) return null;
+  return { mimeType: match[1], data: match[2] };
+}
 
 /**
  * POST /api/ai/chat - Chat about a specific recipe
@@ -71,10 +77,17 @@ Cook time: {{cook_time}}`;
       content: m.content,
     }));
 
+    // Extract images from the last user message
+    const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user') as { role: string; content: string; images?: unknown } | undefined;
+    const images: ImageData[] = Array.isArray(lastUserMessage?.images)
+      ? lastUserMessage.images.map(parseDataUrl).filter((img): img is ImageData => img !== null)
+      : [];
+
     // Use AIServiceV2 for generation
     const generationResult = await aiService.generateForFeature(AIFeature.RECIPE_CHAT_CONTEXTUAL, {
       systemPrompt,
       messages: mappedMessages,
+      images: images.length > 0 ? images : undefined,
     });
 
     return json({

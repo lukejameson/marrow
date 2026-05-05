@@ -5,16 +5,23 @@ import { z } from 'zod';
 import { AIServiceV2 } from '$lib/server/ai/service-v2';
 import { AIFeature } from '$lib/server/ai/features';
 import { PromptService } from '$lib/server/ai/prompt-service';
-import type { Message } from '$lib/server/ai/providers';
+import type { Message, ImageData } from '$lib/server/ai/providers';
 import { AIConfigurationError, isAIConfigurationError, AIRateLimitError, isAIRateLimitError } from '$lib/utils/errors';
 import { db } from '$lib/server/db/db';
 import { agents, memories } from '$lib/server/db/schema';
 import { eq, desc } from 'drizzle-orm';
 
+function parseDataUrl(dataUrl: string): ImageData | null {
+  const match = dataUrl.match(/^data:(.+?);base64,(.+)$/);
+  if (!match) return null;
+  return { mimeType: match[1], data: match[2] };
+}
+
 const recipeChatSchema = z.object({
   messages: z.array(z.object({
     role: z.enum(['user', 'assistant']),
     content: z.string(),
+    images: z.array(z.string()).optional(),
   })),
   agentId: z.string().optional(),
   referencedRecipes: z.array(z.object({
@@ -93,9 +100,16 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
       content: m.content,
     }));
 
+    // Extract images from the last user message
+    const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user');
+    const images: ImageData[] = (lastUserMessage?.images || [])
+      .map(parseDataUrl)
+      .filter((img): img is ImageData => img !== null);
+
     const generationResult = await aiService.generateForFeature(AIFeature.RECIPE_CHAT, {
       systemPrompt,
       messages: mappedMessages,
+      images: images.length > 0 ? images : undefined,
     });
 
     let parsedRecipe: GeneratedRecipe | undefined;
