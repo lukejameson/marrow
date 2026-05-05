@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db/db';
 import { recipes, photos, recipePhotos } from '$lib/server/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or } from 'drizzle-orm';
 import { getStorageProviderForAdmin } from '$lib/server/storage/service';
 
 export const GET: RequestHandler = async ({ params }) => {
@@ -23,13 +23,22 @@ export const GET: RequestHandler = async ({ params }) => {
       throw error(404, 'Shared recipe not found');
     }
 
-    const keyParts = key.split('/');
-    const photoIdCandidate = keyParts[0];
-
     const [photo] = await db
       .select()
       .from(photos)
-      .where(eq(photos.id, photoIdCandidate))
+      .innerJoin(recipePhotos, eq(recipePhotos.photoId, photos.id))
+      .innerJoin(recipes, eq(recipes.id, recipePhotos.recipeId))
+      .where(
+        and(
+          eq(recipes.shareToken, token),
+          eq(recipes.isShared, true),
+          or(
+            eq(photos.originalKey, key),
+            eq(photos.thumbnailKey, key),
+            eq(photos.mediumKey, key)
+          )
+        )
+      )
       .limit(1);
 
     if (!photo) {
