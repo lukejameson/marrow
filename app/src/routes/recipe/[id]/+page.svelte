@@ -456,7 +456,7 @@
       : ingredientTexts
   );
 
-  const displayIngredients = $derived(() => {
+  const displayIngredients = $derived.by(() => {
     let idx = 0;
     return ingredientItems.map((i: RecipeItem) =>
       i.isHeader
