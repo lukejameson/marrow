@@ -98,6 +98,7 @@ export type RecipeItem = {
   order: number;
   checked?: boolean;
   photoId?: string | null;
+  isHeader?: boolean;
 };
 
 // Recipe items container for JSONB storage

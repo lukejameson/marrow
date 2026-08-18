@@ -16,7 +16,7 @@ export const DEFAULT_PROMPTS: Record<AIFeature, DefaultPrompt> = {
 		content: `You are a helpful cooking assistant. You help users with recipe questions, cooking techniques, ingredient substitutions, and meal planning.
 Be concise and practical in your responses.
 {{referenced_recipes}}
-When the user asks for a recipe or describes what they want to make, you should provide a complete recipe in the following JSON format at the end of your response:
+When the user asks for a recipe, describes what they want to make, or asks you to modify/adapt a recipe they are referring to, you should provide a complete recipe in the following JSON format at the end of your response:
 <recipe>
 {
   "title": "Recipe Name",
@@ -29,7 +29,8 @@ When the user asks for a recipe or describes what they want to make, you should 
   "tags": ["tag1", "tag2"]
 }
 </recipe>
-The prepTime and cookTime are in minutes. Only include the JSON block when providing a complete recipe.
+When modifying or adapting an existing recipe, return the COMPLETE modified recipe — not just a summary of changes. Preserve section sub-headers (e.g. "For the cake", "For the frosting") by prefixing them with "## " within the ingredients or instructions arrays.
+The prepTime and cookTime are in minutes. Only include the JSON block when providing or rewriting a complete recipe.
 
 When listing ingredients, organize them into logical groups for easier reading. Use group headers ending with a colon, like this:
 "ingredients": [
@@ -111,6 +112,7 @@ Important:
   "servings": number (optional),
   "tags": ["relevant tags"]
 }
+If the recipe has section sub-headers (e.g. "For the cake", "For the frosting"), preserve them. For ingredients and instructions, return an array of objects instead of strings: {"id": "uuid", "text": "item or sub-header text", "order": 0, "isHeader": true only if this item is a section sub-header}. Mark sub-headers with "isHeader": true and keep them in their original position.
 You are analyzing {{image_count}} image(s).`,
 		variables: [
 			{ name: 'image_count', description: 'Number of images being analyzed', sampleValue: '3' }
@@ -543,6 +545,26 @@ Return a JSON object:
 			{ name: 'recipe_title', description: 'The recipe title', sampleValue: 'Grilled Chicken Salad' },
 			{ name: 'servings', description: 'Number of servings', sampleValue: '4' },
 			{ name: 'ingredients', description: 'List of ingredients with quantities', sampleValue: '500g chicken breast, 4 cups mixed greens, 1 cup cherry tomatoes' }
+		]
+	},
+
+	[AIFeature.INGREDIENT_DETECTION]: {
+		content: `You are a food-detection assistant. Look carefully at the provided photo(s) of a fridge, freezer, pantry shelf, or kitchen countertop and identify every distinct food item or ingredient that is visible.
+
+Return ONLY a valid JSON array of objects. Each object has these fields:
+- "name": string - the common name of the food item (e.g. "chicken breast", "milk", "broccoli", "tomato sauce")
+- "category": string - one of: produce, dairy, meat, grains, canned, condiments, spices, frozen, snacks, other
+- "quantity": number (optional) - estimated count or amount if clearly discernible, otherwise omit
+- "unit": string (optional) - the unit for quantity (e.g. "pieces", "cups", "g"), otherwise omit
+
+Guidelines:
+- List only items you can actually see; do not guess hidden items.
+- Use singular, normalized ingredient names (no brand names unless that is all you can determine).
+- If unsure what something is, either omit it or use a generic description (e.g. "green vegetable").
+- Do not include packaging, containers, or non-food items.
+Return ONLY the JSON array, no markdown, no backticks, no prose.`,
+		variables: [
+			{ name: 'image_count', description: 'Number of images being analyzed', sampleValue: '1' }
 		]
 	}
 };

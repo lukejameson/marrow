@@ -1,8 +1,25 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { onMount } from 'svelte';
   import { apiClient } from '$lib/api/client';
   import Header from '$lib/components/Header.svelte';
   import RecipeForm from '$lib/components/RecipeForm.svelte';
+
+  let prefillRecipe = $state<any>(null);
+  let loaded = $state(false);
+
+  onMount(() => {
+    try {
+      const stored = sessionStorage.getItem('generatedRecipe');
+      if (stored) {
+        prefillRecipe = JSON.parse(stored);
+        sessionStorage.removeItem('generatedRecipe');
+      }
+    } catch {
+      // ignore malformed prefill
+    }
+    loaded = true;
+  });
 
   async function handleSubmit(data: any) {
     const { components, ...recipeData } = data;
@@ -28,7 +45,11 @@
 <main>
   <div class="container">
     <h2>Create New Recipe</h2>
-    <RecipeForm onSubmit={handleSubmit} onCancel={handleCancel} />
+    {#if loaded}
+      <RecipeForm recipe={prefillRecipe} onSubmit={handleSubmit} onCancel={handleCancel} />
+    {:else}
+      <p>Loading…</p>
+    {/if}
   </div>
 </main>
 

@@ -1,9 +1,9 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db/db';
-import { recipes, tags, recipeTags } from '$lib/server/db/schema';
+import { recipes, tags, recipeTags, photos, recipePhotos } from '$lib/server/db/schema';
 import { getCurrentUser } from '$lib/server/auth';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 
@@ -12,6 +12,7 @@ const recipeItemSchema = z.object({
   id: z.string().uuid(),
   text: z.string().min(1, 'Item cannot be empty'),
   order: z.number().int().min(0),
+  isHeader: z.boolean().optional(),
 });
 
 const recipeItemListSchema = z.object({
@@ -43,6 +44,7 @@ const bulkCreateSchema = z.object({
     instructions: recipeItemListSchema,
     imageUrl: z.string().optional(),
     sourceUrl: z.string().optional(),
+    photoIds: z.array(z.string().uuid()).optional(),
     tags: z.array(z.string()).optional(),
     isFavorite: z.boolean().optional(),
     rating: z.number().min(1).max(5).optional(),
@@ -101,7 +103,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
     for (const recipeData of recipesData) {
       const tagNames = recipeData.tags || [];
-      const { tags: _, ...recipeWithoutTags } = recipeData;
+      const photoIds = recipeData.photoIds || [];
+      const { tags: _, photoIds: __, ...recipeWithoutTags } = recipeData;
 
       // Create recipe
       const [newRecipe] = await db.insert(recipes).values({
@@ -110,6 +113,24 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
         createdAt: new Date(),
         updatedAt: new Date(),
       }).returning();
+
+      // Link photos (uploaded during review) to the new recipe
+      if (photoIds.length > 0) {
+        const owned = await db
+          .select({ id: photos.id })
+          .from(photos)
+          .where(and(eq(photos.accountId, user.userId), inArray(photos.id, photoIds)));
+        const ownedIds = new Set(owned.map(p => p.id));
+        const ordered = [...new Set(photoIds)].filter(id => ownedIds.has(id));
+        for (let i = 0; i < ordered.length; i++) {
+          await db.insert(recipePhotos).values({
+            recipeId: newRecipe.id,
+            photoId: ordered[i],
+            isMain: i === 0,
+            sortOrder: i,
+          });
+        }
+      }
 
       // Handle tags
       if (tagNames.length > 0) {

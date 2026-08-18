@@ -671,6 +671,12 @@ export const apiClient = {
       body: JSON.stringify({ images }),
     }),
 
+  detectIngredients: (images: string[]) =>
+    api<{ ingredients: Array<{ name: string; category: string; quantity?: number; unit?: string }> }>('/api/ai/detect-ingredients', {
+      method: 'POST',
+      body: JSON.stringify({ images }),
+    }),
+
   bulkCreate: (recipes: any[]) =>
     api<any>('/api/recipes/bulk', {
       method: 'POST',

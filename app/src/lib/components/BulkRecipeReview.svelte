@@ -2,12 +2,14 @@
   import { onMount } from 'svelte';
   import { apiClient } from '$lib/api/client';
   import RecipeForm from './RecipeForm.svelte';
+  import RecipeTweakChat from './RecipeTweakChat.svelte';
 
   interface RecipeItem {
     id: string;
     text: string;
     order: number;
     checked?: boolean;
+    isHeader?: boolean;
   }
 
   interface ItemList {
@@ -49,6 +51,7 @@
   let expandedIndex = $state<number | null>(recipes.length === 1 ? 0 : null);
   let editedRecipes = $state<any[]>(recipes.map(convertToFormData));
   let retryingIndex = $state<number | null>(null);
+  let tweakIndex = $state<number | null>(null);
 
   // Duplicate detection
   let existingRecipes = $state<Array<{ id: string; title: string }>>([]);
@@ -127,8 +130,8 @@
       cookTime: recipe.cookTime,
       totalTime: recipe.totalTime,
       servings: recipe.servings,
-      ingredients: extractItemTexts(recipe.ingredients),
-      instructions: extractItemTexts(recipe.instructions),
+      ingredients: toStructuredItems(recipe.ingredients),
+      instructions: toStructuredItems(recipe.instructions),
       tags: recipe.tags.map((t) => ({ name: t })),
       difficulty: recipe.difficulty,
       confidence: recipe.confidence,
@@ -235,6 +238,42 @@
     return { items: [] };
   }
 
+  // Convert rewritten flat strings back to structured items, marking '## ' prefixes as headers
+  function rewrittenStringsToList(strings: string[] | undefined): ItemList {
+    if (!Array.isArray(strings)) return { items: [] };
+    return {
+      items: strings
+        .filter((s) => s && s.trim())
+        .map((text, i) => {
+          const trimmed = text.trim();
+          const isHeader = trimmed.startsWith('## ');
+          return {
+            id: crypto.randomUUID(),
+            text: isHeader ? trimmed.slice(3).trim() : trimmed,
+            order: i,
+            ...(isHeader && { isHeader: true }),
+          };
+        }),
+    };
+  }
+
+  function applyTweak(index: number, rewritten: any) {
+    const current = editedRecipes[index];
+    editedRecipes[index] = {
+      ...current,
+      title: rewritten.title || current.title,
+      description: rewritten.description ?? current.description,
+      prepTime: rewritten.prepTime ?? current.prepTime,
+      cookTime: rewritten.cookTime ?? current.cookTime,
+      totalTime: rewritten.totalTime ?? current.totalTime,
+      servings: rewritten.servings ?? current.servings,
+      ingredients: rewrittenStringsToList(rewritten.ingredients),
+      instructions: rewrittenStringsToList(rewritten.instructions),
+    };
+    tweakIndex = null;
+    expandedIndex = null; // remount RecipeForm with the updated recipe
+  }
+
   async function handleSaveSelected() {
     const toSave = Array.from(selectedIndices)
       .filter((i) => !editedRecipes[i].failed)
@@ -256,6 +295,8 @@
           instructions: toStructuredItems(recipe.instructions),
           tags: recipe.tags.map((t: any) => (typeof t === 'string' ? t : t.name)),
           notes: extractionNote,
+          imageUrl: recipe.imageUrl || undefined,
+          photoIds: recipe.photoIds,
         };
       });
 
@@ -388,6 +429,11 @@
 
         {#if expandedIndex === index && !isFailed}
           <div class="recipe-form-container">
+            <div class="tweak-row">
+              <button type="button" class="btn-tweak" onclick={() => tweakIndex = index}>
+                Tweak
+              </button>
+            </div>
             {#if duplicates && duplicates.length > 0}
               <div class="duplicate-warning-expanded">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -433,6 +479,15 @@
       {/if}
     </button>
   </div>
+
+  {#if tweakIndex !== null}
+    {@const idx = tweakIndex}
+    <RecipeTweakChat
+      recipe={editedRecipes[idx]}
+      onApply={(r) => applyTweak(idx, r)}
+      onClose={() => tweakIndex = null}
+    />
+  {/if}
 </div>
 
 <style>
@@ -730,6 +785,30 @@
     padding: var(--spacing-4);
     border-top: 1px solid var(--color-border);
     background: var(--color-bg-subtle);
+  }
+
+  .tweak-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: var(--spacing-2);
+  }
+
+  .btn-tweak {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    padding: var(--spacing-2) var(--spacing-3);
+    background: var(--color-surface);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-primary);
+    cursor: pointer;
+  }
+
+  .btn-tweak:hover {
+    background: var(--color-primary-light);
   }
 
   .review-actions {

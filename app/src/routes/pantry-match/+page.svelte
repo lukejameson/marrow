@@ -5,6 +5,10 @@
   import AIButton from '$lib/components/ai/AIButton.svelte';
   import AIBadge from '$lib/components/ai/AIBadge.svelte';
   import { getItemTexts } from '$lib/utils/recipe-helpers';
+  import { authStore } from '$lib/stores/auth.svelte';
+
+  let hasPhotoExtraction = $derived(authStore.user?.featureFlags?.photoExtraction ?? false);
+  let hasRecipeGeneration = $derived(authStore.user?.featureFlags?.recipeGeneration ?? false);
 
   interface MatchedRecipe {
     recipeId: string;
@@ -26,11 +30,143 @@
   let matches = $state<MatchedRecipe[]>([]);
   let hasSearched = $state(false);
 
-  async function handleSearch() {
-    const ingredients = ingredientsInput
+  interface DetectedItem {
+    name: string;
+    category: string;
+  }
+
+  let detectedItems = $state<DetectedItem[]>([]);
+  let scanning = $state(false);
+  let scanError = $state('');
+  let newDetectedItem = $state('');
+
+  function readFileAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Failed to read image'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handleScanFile(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    scanning = true;
+    scanError = '';
+    error = '';
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const result = await apiClient.detectIngredients([dataUrl]);
+      detectedItems = result.ingredients.map((i) => ({ name: i.name, category: i.category }));
+      if (detectedItems.length === 0) {
+        scanError = 'No food items detected. Try a clearer photo.';
+      }
+    } catch (err: any) {
+      scanError = err.message || 'Failed to detect ingredients';
+    } finally {
+      scanning = false;
+      input.value = '';
+    }
+  }
+
+  function removeDetectedItem(index: number) {
+    detectedItems = detectedItems.filter((_, i) => i !== index);
+  }
+
+  function addDetectedItem() {
+    const name = newDetectedItem.trim();
+    if (!name) return;
+    detectedItems = [...detectedItems, { name, category: 'other' }];
+    newDetectedItem = '';
+  }
+
+  function clearDetected() {
+    detectedItems = [];
+  }
+
+  let generating = $state(false);
+  let generatedRecipes = $state<any[]>([]);
+  let genError = $state('');
+  let savingToPantry = $state(false);
+  let pantrySaveMsg = $state('');
+
+  async function handleGenerate() {
+    const ingredients = getSearchIngredients();
+    if (ingredients.length === 0) {
+      genError = 'Add or detect some ingredients first';
+      return;
+    }
+    generating = true;
+    genError = '';
+    generatedRecipes = [];
+    const angleHints = [
+      'a quick and easy weeknight dinner',
+      'a healthier, lighter option',
+      'a comforting classic',
+    ];
+    try {
+      const results = await Promise.allSettled(
+        angleHints.map((hint) =>
+          apiClient.generateRecipe(`a recipe using: ${ingredients.join(', ')} — ${hint}`)
+        )
+      );
+      generatedRecipes = results
+        .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled')
+        .map((r) => r.value.recipe)
+        .filter((recipe) => recipe && recipe.title);
+      if (generatedRecipes.length === 0) {
+        genError = "Couldn't generate any recipes. Please try again.";
+      }
+    } finally {
+      generating = false;
+    }
+  }
+
+  function pickGeneratedRecipe(recipe: any) {
+    try {
+      sessionStorage.setItem('generatedRecipe', JSON.stringify(recipe));
+    } catch {
+      // ignore storage errors
+    }
+    goto('/recipe/new');
+  }
+
+  async function handleSaveToPantry() {
+    if (detectedItems.length === 0) return;
+    savingToPantry = true;
+    pantrySaveMsg = '';
+    try {
+      for (const item of detectedItems) {
+        const name = item.name.trim();
+        if (!name) continue;
+        await apiClient.addPantryItem({
+          ingredient: name.toLowerCase(),
+          displayName: name,
+          category: item.category,
+        });
+      }
+      pantrySaveMsg = 'Saved to pantry';
+    } catch (err: any) {
+      pantrySaveMsg = err.message || 'Failed to save to pantry';
+    } finally {
+      savingToPantry = false;
+    }
+  }
+
+  function getSearchIngredients(): string[] {
+    if (detectedItems.length > 0) {
+      return detectedItems.map((d) => d.name.trim()).filter(Boolean);
+    }
+    return ingredientsInput
       .split(/[,\n]/)
       .map((i) => i.trim())
       .filter(Boolean);
+  }
+
+  async function handleSearch() {
+    const ingredients = getSearchIngredients();
 
     if (ingredients.length === 0) {
       error = 'Please enter at least one ingredient';
@@ -154,6 +290,56 @@
     </div>
 
     <div class="input-section">
+      {#if hasPhotoExtraction}
+        <div class="scan-row">
+          <label class="scan-btn" for="fridge-scan-input">
+            {scanning ? 'Detecting...' : '📷 Scan fridge'}
+          </label>
+          <input
+            id="fridge-scan-input"
+            type="file"
+            accept="image/*"
+            capture="environment"
+            class="hidden-input"
+            onchange={handleScanFile}
+          />
+        </div>
+      {/if}
+
+      {#if scanError}
+        <p class="error">{scanError}</p>
+      {/if}
+
+      {#if detectedItems.length > 0}
+        <div class="detected-section">
+          <div class="detected-header">
+            <span>Detected items — edit if needed</span>
+            <button type="button" class="clear-detected" onclick={clearDetected}>Clear</button>
+          </div>
+          <div class="detected-list">
+            {#each detectedItems as item, i}
+              <div class="detected-item">
+                <input bind:value={item.name} aria-label="Detected item" />
+                <span class="detected-category">{item.category}</span>
+                <button type="button" class="remove-item" onclick={() => removeDetectedItem(i)} aria-label="Remove">×</button>
+              </div>
+            {/each}
+          </div>
+          <div class="add-item-row">
+            <input bind:value={newDetectedItem} placeholder="Add another item" />
+            <button type="button" onclick={addDetectedItem}>Add</button>
+          </div>
+          <div class="detected-actions">
+            <button type="button" class="save-pantry-btn" onclick={handleSaveToPantry} disabled={savingToPantry}>
+              {savingToPantry ? 'Saving...' : '💾 Save to pantry'}
+            </button>
+            {#if pantrySaveMsg}
+              <span class="pantry-save-msg">{pantrySaveMsg}</span>
+            {/if}
+          </div>
+        </div>
+      {/if}
+
       <label for="ingredients">Your Ingredients</label>
       <textarea
         id="ingredients"
@@ -175,7 +361,52 @@
         variant="primary"
         size="md"
       />
+
+      {#if hasRecipeGeneration}
+        <button
+          type="button"
+          class="generate-btn"
+          onclick={handleGenerate}
+          disabled={generating}
+        >
+          {generating ? 'Generating...' : '✨ Generate new recipes'}
+        </button>
+      {/if}
+
+      {#if genError}
+        <p class="error">{genError}</p>
+      {/if}
     </div>
+
+    {#if generatedRecipes.length > 0}
+      <div class="generated-section">
+        <div class="results-header">
+          <h2>Generated recipes — pick one to save</h2>
+        </div>
+        <div class="generated-list">
+          {#each generatedRecipes as recipe}
+            <div class="generated-card">
+              <div class="generated-details">
+                <h3>{recipe.title}</h3>
+                {#if recipe.description}
+                  <p class="generated-desc">{recipe.description}</p>
+                {/if}
+                {#if recipe.prepTime || recipe.cookTime}
+                  <p class="match-time">
+                    {#if recipe.prepTime}Prep: {formatTime(recipe.prepTime)}{/if}
+                    {#if recipe.prepTime && recipe.cookTime}•{/if}
+                    {#if recipe.cookTime}Cook: {formatTime(recipe.cookTime)}{/if}
+                  </p>
+                {/if}
+              </div>
+              <button type="button" class="use-recipe-btn" onclick={() => pickGeneratedRecipe(recipe)}>
+                Use this recipe
+              </button>
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/if}
 
     {#if hasSearched}
       <div class="results-section">
@@ -479,6 +710,209 @@
 
   .missing .list {
     color: var(--color-warning);
+  }
+
+  .scan-row {
+    margin-bottom: var(--spacing-4);
+  }
+
+  .scan-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-3) var(--spacing-5);
+    background: var(--color-primary);
+    color: white;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .hidden-input {
+    display: none;
+  }
+
+  .detected-section {
+    background: var(--color-bg-subtle);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-4);
+    margin-bottom: var(--spacing-4);
+  }
+
+  .detected-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-3);
+    font-weight: 600;
+    font-size: var(--text-sm);
+    color: var(--color-text);
+  }
+
+  .clear-detected {
+    background: none;
+    border: none;
+    color: var(--color-text-light);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    text-decoration: underline;
+  }
+
+  .detected-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+  }
+
+  .detected-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+  }
+
+  .detected-item input {
+    flex: 1;
+    padding: var(--spacing-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+  }
+
+  .detected-category {
+    font-size: var(--text-xs);
+    color: var(--color-text-light);
+    text-transform: capitalize;
+    min-width: 64px;
+  }
+
+  .remove-item {
+    background: none;
+    border: none;
+    color: var(--color-text-light);
+    cursor: pointer;
+    font-size: var(--text-lg);
+    padding: 0 var(--spacing-1);
+  }
+
+  .add-item-row {
+    display: flex;
+    gap: var(--spacing-2);
+    margin-top: var(--spacing-2);
+  }
+
+  .add-item-row input {
+    flex: 1;
+    padding: var(--spacing-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+  }
+
+  .add-item-row button {
+    padding: var(--spacing-2) var(--spacing-4);
+    background: var(--color-bg-subtle);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .detected-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    margin-top: var(--spacing-3);
+    flex-wrap: wrap;
+  }
+
+  .save-pantry-btn {
+    padding: var(--spacing-2) var(--spacing-4);
+    background: var(--color-bg-subtle);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .save-pantry-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .pantry-save-msg {
+    font-size: var(--text-sm);
+    color: var(--color-text-light);
+  }
+
+  .generate-btn {
+    display: block;
+    margin-top: var(--spacing-3);
+    padding: var(--spacing-3) var(--spacing-5);
+    background: var(--color-bg-subtle);
+    color: var(--color-text);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .generate-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .generated-section {
+    background: var(--color-surface);
+    padding: var(--spacing-6);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+    margin-bottom: var(--spacing-8);
+  }
+
+  .generated-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+  }
+
+  .generated-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-4);
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-4);
+  }
+
+  .generated-details {
+    min-width: 0;
+  }
+
+  .generated-details h3 {
+    margin: 0 0 var(--spacing-1);
+    font-size: var(--text-base);
+    font-weight: 600;
+  }
+
+  .generated-desc {
+    margin: 0 0 var(--spacing-1);
+    font-size: var(--text-sm);
+    color: var(--color-text-light);
+  }
+
+  .use-recipe-btn {
+    flex-shrink: 0;
+    padding: var(--spacing-2) var(--spacing-4);
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
   }
 
   @media (max-width: 640px) {

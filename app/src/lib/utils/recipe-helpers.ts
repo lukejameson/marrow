@@ -79,7 +79,8 @@ export function normalizeRecipeData(recipe: any): any {
               id: item.id || crypto.randomUUID(),
               text: item.text || '',
               order: item.order ?? i,
-              ...(item.checked && { checked: item.checked })
+              ...(item.checked && { checked: item.checked }),
+              ...(item.isHeader && { isHeader: true })
             }))
           };
         } else {
@@ -113,7 +114,8 @@ export function normalizeRecipeData(recipe: any): any {
             items: parsed.items.map((item: any, i: number) => ({
               id: item.id || crypto.randomUUID(),
               text: item.text || '',
-              order: item.order ?? i
+              order: item.order ?? i,
+              ...(item.isHeader && { isHeader: true })
             }))
           };
         } else {

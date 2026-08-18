@@ -413,13 +413,6 @@
     flex: 1;
   }
 
-  /* Mobile bottom nav content padding */
-  @media (max-width: 768px) {
-    .main-content {
-      padding-bottom: calc(64px + env(safe-area-inset-bottom));
-    }
-  }
-
   .app {
     min-height: 100vh;
     min-height: 100dvh; /* Dynamic viewport for iOS Safari */

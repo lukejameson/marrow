@@ -5,10 +5,12 @@
   let photos = $derived(recipe?.photos || []);
   let mainPhoto = $derived(photos.find((p: any) => p.isMain) || photos[0]);
   let heroImage = $derived(mainPhoto?.urls?.original || recipe?.imageUrl || null);
-  const ingredientTexts = $derived(
+  const ingredientItems = $derived(
     recipe?.ingredients?.items
-      ?.toSorted((a: RecipeItem, b: RecipeItem) => (a.order ?? 0) - (b.order ?? 0))
-      .map((i: RecipeItem) => i.text) ?? []
+      ?.toSorted((a: RecipeItem, b: RecipeItem) => (a.order ?? 0) - (b.order ?? 0)) ?? []
+  );
+  const ingredientTexts = $derived(
+    ingredientItems.filter((i: RecipeItem) => !i.isHeader).map((i: RecipeItem) => i.text)
   );
   const instructionTexts = $derived(
     recipe?.instructions?.items
@@ -126,8 +128,12 @@
     <section class="ingredients">
       <h2>Ingredients</h2>
       <ul>
-        {#each ingredientTexts as ingredient}
-          <li>{ingredient}</li>
+        {#each ingredientItems as ingredient}
+          {#if ingredient.isHeader}
+            <li class="ingredient-header">{ingredient.text}</li>
+          {:else}
+            <li>{ingredient.text}</li>
+          {/if}
         {/each}
       </ul>
     </section>
@@ -316,6 +322,13 @@
     margin-bottom: 0.75rem;
     line-height: 1.625;
     color: #363636;
+  }
+
+  .ingredient-header {
+    list-style: none;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 0.5rem;
   }
 
   .instructions ol {

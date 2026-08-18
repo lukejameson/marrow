@@ -14,6 +14,7 @@ interface RecipeItem {
   text: string;
   order: number;
   checked?: boolean;
+  isHeader?: boolean;
 }
 function stringsToItemList(strings: string[]): { items: RecipeItem[] } {
   return {
@@ -33,7 +34,8 @@ function parseStructuredItems(items: any[]): { items: RecipeItem[] } {
     items: items.map((item, i) => ({
       id: item.id || randomUUID(),
       text: typeof item === 'string' ? item : item.text,
-      order: item.order ?? i
+      order: item.order ?? i,
+      ...(item?.isHeader && { isHeader: true })
     }))
   };
 }
@@ -63,8 +65,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     let systemPrompt = promptData?.content || `Extract recipe information from these images. Return a JSON object with:
 - title: string
 - description: string (optional)
-- ingredients: array of objects with id (optional UUID), text (string), and order (optional number) - OR array of strings
-- instructions: array of objects with id (optional UUID), text (string), and order (optional number) - OR array of strings
+- ingredients: array of objects with id (optional UUID), text (string), order (optional number), and isHeader (optional boolean) - OR array of strings
+- instructions: array of objects with id (optional UUID), text (string), order (optional number), and isHeader (optional boolean) - OR array of strings
 - prepTime: number (minutes, optional)
 - cookTime: number (minutes, optional)
 - servings: number (optional)
@@ -72,6 +74,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 For ingredients and instructions, you can return either:
 1. Simple string arrays: ["2 cups flour", "1 cup sugar"]
 2. Structured objects: [{"id": "uuid", "text": "2 cups flour", "order": 0}]
+If the recipe has section sub-headers (e.g. "For the cake", "For the frosting"), preserve them as items with "isHeader": true in their original position.
 Only include fields you can confidently extract from the images.`;
     systemPrompt = PromptService.resolvePromptVariables(systemPrompt, {
       image_count: String(images.length)

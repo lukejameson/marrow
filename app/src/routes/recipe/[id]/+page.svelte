@@ -68,10 +68,12 @@
   let linkCopied = $state(false);
   let addingToShoppingList = $state(false);
   let shoppingListMessage = $state<string | null>(null);
-  const ingredientTexts = $derived(
+  const ingredientItems = $derived(
     recipe?.ingredients?.items
-      ?.toSorted((a: RecipeItem, b: RecipeItem) => (a.order ?? 0) - (b.order ?? 0))
-      .map((i: RecipeItem) => i.text) ?? []
+      ?.toSorted((a: RecipeItem, b: RecipeItem) => (a.order ?? 0) - (b.order ?? 0)) ?? []
+  );
+  const ingredientTexts = $derived(
+    ingredientItems.filter((i: RecipeItem) => !i.isHeader).map((i: RecipeItem) => i.text)
   );
   const instructionTexts = $derived(
     recipe?.instructions?.items
@@ -453,6 +455,15 @@
       ? scaleRecipe(ingredientTexts, recipe.servings, Number(scaledServings))
       : ingredientTexts
   );
+
+  const displayIngredients = $derived(() => {
+    let idx = 0;
+    return ingredientItems.map((i: RecipeItem) =>
+      i.isHeader
+        ? { isHeader: true, text: i.text }
+        : { isHeader: false, text: scaledIngredients[idx++] ?? i.text }
+    );
+  });
 
   async function handleDelete() {
     if (!confirm('Are you sure you want to delete this recipe?')) return;
@@ -913,8 +924,12 @@
           <div class="cooking-ingredients">
             <h3>Quick Reference - Ingredients</h3>
             <ul>
-              {#each scaledIngredients as ingredient}
-                <li>{ingredient}</li>
+              {#each displayIngredients as entry}
+                {#if entry.isHeader}
+                  <li class="cooking-header">{entry.text}</li>
+                {:else}
+                  <li>{entry.text}</li>
+                {/if}
               {/each}
             </ul>
           </div>
@@ -976,17 +991,21 @@
         <section class="ingredients">
           <h2>Ingredients</h2>
           <ul>
-            {#each scaledIngredients as ingredient, i}
-              <li class="ingredient-item">
-                <span class="ingredient-text">{ingredient}</span>
-                <button
-                  class="btn-substitute"
-                  onclick={() => openSubstitutionModal(ingredientTexts[i])}
-                  title="Find substitutes"
-                >
-                  <span class="sub-icon">↔</span>
-                </button>
-              </li>
+            {#each displayIngredients as entry}
+              {#if entry.isHeader}
+                <li class="ingredient-header">{entry.text}</li>
+              {:else}
+                <li class="ingredient-item">
+                  <span class="ingredient-text">{entry.text}</span>
+                  <button
+                    class="btn-substitute"
+                    onclick={() => openSubstitutionModal(entry.text)}
+                    title="Find substitutes"
+                  >
+                    <span class="sub-icon">↔</span>
+                  </button>
+                </li>
+              {/if}
             {/each}
           </ul>
         </section>
@@ -1706,6 +1725,14 @@
     line-height: var(--leading-relaxed);
     font-size: var(--text-base);
     color: var(--color-text-secondary);
+  }
+
+  .ingredient-header,
+  .cooking-header {
+    list-style: none;
+    font-weight: var(--font-bold);
+    color: var(--color-text);
+    margin-bottom: var(--spacing-2);
   }
 
   .ingredient-item {

@@ -14,6 +14,7 @@ const recipeItemSchema = z.object({
   id: z.string().uuid(),
   text: z.string().min(1, 'Item cannot be empty'),
   order: z.number().int().min(0),
+  isHeader: z.boolean().optional(),
 });
 
 const recipeItemListSchema = z.object({

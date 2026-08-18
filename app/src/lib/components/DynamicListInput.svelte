@@ -7,6 +7,7 @@
     text: string;
     order: number;
     checked?: boolean;
+    isHeader?: boolean;
   }
 
   interface Props {
@@ -69,6 +70,13 @@
   function updateItem(id: string, text: string) {
     const newItems = items.map((item) =>
       item.id === id ? { ...item, text } : item
+    );
+    onChange(newItems);
+  }
+
+  function toggleHeader(id: string) {
+    const newItems = items.map((item) =>
+      item.id === id ? { ...item, isHeader: !item.isHeader } : item
     );
     onChange(newItems);
   }
@@ -253,6 +261,7 @@
         {@const isLast = item.order === items.length - 1}
         <div
           class="item-row"
+          class:is-header={item.isHeader}
           class:dragging={draggedItem?.id === item.id}
           class:drag-over={dragOverIndex === item.order}
           ondragstart={(e) => handleDragStart(e, item)}
@@ -279,6 +288,16 @@
             aria-label="{label} item {item.order + 1}"
             rows="1"
           ></textarea>
+          <button
+            type="button"
+            class="header-toggle-btn"
+            class:active={item.isHeader}
+            onclick={() => toggleHeader(item.id)}
+            aria-label="Toggle section header"
+            title="Section header"
+          >
+            §
+          </button>
           <div class="reorder-buttons">
             <button
               type="button"
@@ -392,6 +411,45 @@
   .item-row.drag-over {
     border-color: var(--color-primary);
     border-style: dashed;
+  }
+  .item-row.is-header {
+    background: var(--color-bg-subtle);
+    border-color: var(--color-border);
+  }
+  .item-row.is-header .item-input {
+    font-weight: var(--font-bold);
+    color: var(--color-text);
+  }
+  .header-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--color-text-light);
+    font-size: 16px;
+    font-weight: var(--font-bold);
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    transition: var(--transition-fast);
+    flex-shrink: 0;
+  }
+  .header-toggle-btn:hover {
+    background: var(--color-bg-subtle);
+    color: var(--color-text);
+  }
+  .header-toggle-btn.active {
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+  }
+  .header-toggle-btn:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
   }
   .drag-handle {
     display: flex;

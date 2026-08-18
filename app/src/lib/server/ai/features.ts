@@ -22,7 +22,8 @@ export enum AIFeature {
 	RECIPE_SCALING = 'recipe_scaling',
 	COOKING_COACH = 'cooking_coach',
 	SEASONAL_SUBSTITUTIONS = 'seasonal_substitutions',
-	DETAILED_NUTRITION = 'detailed_nutrition'
+	DETAILED_NUTRITION = 'detailed_nutrition',
+	INGREDIENT_DETECTION = 'ingredient_detection'
 }
 export interface FeatureConfig {
 	feature: AIFeature;
@@ -152,6 +153,11 @@ export const DEFAULT_FEATURE_CONFIGS: Record<AIFeature, { temperature: number; m
 		temperature: 0.3,
 		maxTokens: 2048,
 		requiresVision: false
+	},
+	[AIFeature.INGREDIENT_DETECTION]: {
+		temperature: 0.2,
+		maxTokens: 1024,
+		requiresVision: true
 	}
 };
 export const FEATURE_NAMES: Record<AIFeature, string> = {
@@ -178,7 +184,8 @@ export const FEATURE_NAMES: Record<AIFeature, string> = {
 	[AIFeature.RECIPE_SCALING]: 'Recipe Scaling',
 	[AIFeature.COOKING_COACH]: 'Cooking Coach',
 	[AIFeature.SEASONAL_SUBSTITUTIONS]: 'Seasonal Substitutions',
-	[AIFeature.DETAILED_NUTRITION]: 'Detailed Nutrition'
+	[AIFeature.DETAILED_NUTRITION]: 'Detailed Nutrition',
+	[AIFeature.INGREDIENT_DETECTION]: 'Ingredient Detection'
 };
 export const FEATURE_DESCRIPTIONS: Record<AIFeature, string> = {
 	[AIFeature.RECIPE_CHAT]: 'General chat about recipes and cooking',
@@ -204,7 +211,8 @@ export const FEATURE_DESCRIPTIONS: Record<AIFeature, string> = {
 	[AIFeature.RECIPE_SCALING]: 'Smart recipe scaling with AI-powered advice',
 	[AIFeature.COOKING_COACH]: 'Step-by-step cooking guidance with timing and technique tips',
 	[AIFeature.SEASONAL_SUBSTITUTIONS]: 'Suggest seasonal ingredient substitutions based on current season',
-	[AIFeature.DETAILED_NUTRITION]: 'Calculate detailed nutritional information with health labels'
+	[AIFeature.DETAILED_NUTRITION]: 'Calculate detailed nutritional information with health labels',
+	[AIFeature.INGREDIENT_DETECTION]: 'Detect food items in photos of a fridge or countertop (requires vision)'
 };
 export enum FeatureCategory {
 	CHAT = 'chat',
@@ -236,7 +244,8 @@ export const FEATURE_CATEGORIES: Record<AIFeature, FeatureCategory> = {
 	[AIFeature.RECIPE_SCALING]: FeatureCategory.ENHANCEMENT,
 	[AIFeature.COOKING_COACH]: FeatureCategory.ANALYSIS,
 	[AIFeature.SEASONAL_SUBSTITUTIONS]: FeatureCategory.ENHANCEMENT,
-	[AIFeature.DETAILED_NUTRITION]: FeatureCategory.ANALYSIS
+	[AIFeature.DETAILED_NUTRITION]: FeatureCategory.ANALYSIS,
+	[AIFeature.INGREDIENT_DETECTION]: FeatureCategory.ANALYSIS
 };
 export const CATEGORY_NAMES: Record<FeatureCategory, string> = {
 	[FeatureCategory.CHAT]: 'Chat',

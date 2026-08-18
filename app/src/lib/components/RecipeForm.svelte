@@ -64,6 +64,7 @@ let totalTimeUnit = $state<TimeUnit>('minutes');
     isMain?: boolean;
   }>>([]);
   let photoPickerOpen = $state(false);
+  let pendingPhotoIds = $state<string[]>([]);
   let changingCoverPhoto = $state(false);
   let loadingPhotos = $state(false);
   let tags = $state(recipe?.tags?.map((t: any) => t.name).join(', ') || '');
@@ -121,9 +122,21 @@ onMount(async () => {
         const first = selectedPhotos[0];
         imageUrl = first.urls?.medium || first.urls?.original || first.pexelsUrl || '';
       }
-      if (!recipe?.id) return;
     }
-    if (!recipe?.id) return;
+    // New recipe (no id yet): can't attach via API, so stash photo IDs for the save payload
+    if (!recipe?.id) {
+      for (const photo of selectedPhotos) {
+        if (!pendingPhotoIds.includes(photo.id)) {
+          pendingPhotoIds = [...pendingPhotoIds, photo.id];
+        }
+        const isFirst = photos.length === 0;
+        photos = [...photos, { ...photo, isMain: isFirst }];
+        if (!imageUrl && (photo.urls?.medium || photo.urls?.original)) {
+          imageUrl = photo.urls.medium || photo.urls.original;
+        }
+      }
+      return;
+    }
     for (const photo of selectedPhotos) {
       try {
         await apiClient.addPhotoToRecipe(recipe.id, photo.id);
@@ -419,6 +432,8 @@ onMount(async () => {
       instructions: { items: instructionList },
       tags: tagList,
       nutrition,
+      // Include photo IDs so the parent can persist them when creating a new recipe
+      photoIds: pendingPhotoIds.length > 0 ? pendingPhotoIds : undefined,
       // Include components data for the parent to handle
       components: components.map((c) => ({
         childRecipeId: c.childRecipeId,
